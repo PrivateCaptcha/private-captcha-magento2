@@ -10,7 +10,7 @@
 
 ## Installation
 
-> <mark>Check detailed step-by-step setup instructions [here](https://docs.privatecaptcha.com/docs/integrations/magento/).</mark>
+> <mark>Check detailed step-by-step setup instructions [here](https://docs.privatecaptcha.com/docs/integrations/magento2/).</mark>
 
 1. Install the published package in a Magento project:
     ```bash
