@@ -55,10 +55,11 @@ final class FailureProviderTest extends TestCase
         $request = $this->createMock(HttpRequest::class);
         $request->expects(self::exactly(2))
             ->method('getParam')
-            ->willReturnMap([
-                ['id', 42],
-                ['cat_id', '0'],
-            ]);
+            ->willReturnCallback(static fn(string $key): int|string|null => match ($key) {
+                'id' => 42,
+                'cat_id' => '0',
+                default => null,
+            });
         $redirect = $this->createMock(RedirectInterface::class);
         $redirect->expects(self::once())
             ->method('redirect')

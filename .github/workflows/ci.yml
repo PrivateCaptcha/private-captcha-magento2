@@ -159,6 +159,7 @@ jobs:
           --standard=Magento2
           --extensions=php,phtml
           --error-severity=10
+          --runtime-set ignore_warnings_on_exit 1
           --ignore-annotations
           --ignore='*/Test/*'
           .

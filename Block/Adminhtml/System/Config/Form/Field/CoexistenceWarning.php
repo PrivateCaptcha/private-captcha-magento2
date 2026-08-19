@@ -44,9 +44,9 @@ class CoexistenceWarning extends Field
         }
 
         $html = '<td colspan="4"><div class="message message-warning warning"><strong>'
-            . $this->escapeHtml(__('CAPTCHA overlap detected.'))
+            . $this->escapeHtml((string) __('CAPTCHA overlap detected.'))
             . '</strong><ul>' . $items . '</ul><p>'
-            . $this->escapeHtml(__(
+            . $this->escapeHtml((string) __(
                 'Effective Website settings. Select the named Website scope to review or disable Private Captcha.'
             ))
             . '</p></div></td>';

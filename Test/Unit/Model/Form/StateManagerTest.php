@@ -137,10 +137,11 @@ final class StateManagerTest extends TestCase
         ]);
         $request->expects(self::exactly(2))
             ->method('getParam')
-            ->willReturnMap([
-                ['id', '42'],
-                ['cat_id', '9'],
-            ]);
+            ->willReturnCallback(static fn(string $key): ?string => match ($key) {
+                'id' => '42',
+                'cat_id' => '9',
+                default => null,
+            });
         $request->method('getQuery')->willReturn($query);
         $request->expects(self::once())->method('clearParams');
         $routeParameters = [];
