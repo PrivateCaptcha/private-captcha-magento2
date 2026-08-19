@@ -174,8 +174,8 @@ jobs:
           --memory-limit=1G
 
       - name: Run PHP unit tests
-        working-directory: ${{ env.MAGENTO_ROOT }}
+        working-directory: ${{ env.MAGENTO_ROOT }}/dev/tests/unit
         run: >-
-          vendor/bin/phpunit
-          -c dev/tests/unit/phpunit.xml.dist
+          ../../../vendor/bin/phpunit
+          -c phpunit.xml.dist
           "$GITHUB_WORKSPACE/Test/Unit"
