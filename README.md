@@ -18,6 +18,7 @@
     bin/magento module:enable PrivateCaptcha_PrivateCaptcha
     bin/magento setup:upgrade
     bin/magento setup:di:compile
+    bin/magento setup:static-content:deploy -f en_US
     bin/magento cache:flush
     ```
 2. Go to **Stores → Configuration → Security → Private Captcha**
