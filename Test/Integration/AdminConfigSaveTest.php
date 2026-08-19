@@ -7,6 +7,7 @@ namespace PrivateCaptcha\PrivateCaptcha\Test\Integration;
 use Magento\Config\Model\Config\Factory as ConfigFactory;
 use Magento\Framework\App\Config\ReinitableConfigInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\Config\Storage\WriterInterface;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\ObjectManagerInterface;
@@ -30,7 +31,7 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
      */
-    public function testSameRequestCredentialsAndEnablementSaveTogether(): void
+    public function testCredentialsArePersistedAndApiKeyIsEncrypted(): void
     {
         $websiteId = $this->getCurrentWebsiteId();
         $this->save($websiteId, [
@@ -40,7 +41,6 @@ final class AdminConfigSaveTest extends TestCase
                     'api_key' => ['value' => 'api-key'],
                 ],
             ],
-            'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
         ]);
 
         $this->reinitializeConfig();
@@ -55,10 +55,6 @@ final class AdminConfigSaveTest extends TestCase
             'api-key',
             $scopeConfig->getValue(Config::PATH_API_KEY, ScopeInterface::SCOPE_WEBSITE, $websiteCode)
         );
-        self::assertTrue(
-            $scopeConfig->isSetFlag('private_captcha/protected_forms/contact_form', ScopeInterface::SCOPE_WEBSITE, $websiteCode)
-        );
-
         $resource = $this->objectManager->get(ResourceConnection::class);
         $connection = $resource->getConnection();
         $storedApiKey = $connection->fetchOne(
@@ -77,24 +73,150 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
      */
-    public function testMissingCredentialRejectsTheEntireSave(): void
+    public function testInvalidCredentialUpdateDisablesPreviouslyEnabledForms(): void
     {
         $websiteId = $this->getCurrentWebsiteId();
+        $writer = $this->objectManager->get(WriterInterface::class);
+        $writer->save(
+            Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+            '1',
+            ScopeInterface::SCOPE_WEBSITES,
+            $websiteId
+        );
+        $writer->save(
+            Config::FORM_PATHS[Config::FORM_CONTACT],
+            '1',
+            ScopeInterface::SCOPE_WEBSITES,
+            $websiteId
+        );
+        $this->reinitializeConfig();
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $websiteCode = $this->getCurrentWebsiteCode();
+        self::assertTrue(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+        self::assertTrue(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CONTACT],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
 
-        try {
-            $this->save($websiteId, [
-                'credentials' => ['fields' => ['site_key' => ['value' => 'site-key']]],
-                'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
-            ]);
-            self::fail('Expected missing API Key to reject the save.');
-        } catch (LocalizedException) {
-        }
+        $this->save($websiteId, [
+            'credentials' => [
+                'fields' => [
+                    'site_key' => ['value' => 'invalid-site-key'],
+                    'api_key' => ['value' => 'invalid-api-key'],
+                ],
+            ],
+            'protected_forms' => [
+                'fields' => [
+                    'customer_login' => ['value' => '1'],
+                    'contact_form' => ['value' => '1'],
+                ],
+            ],
+        ]);
+
+        $this->reinitializeConfig();
+
+        self::assertSame(
+            'invalid-site-key',
+            $scopeConfig->getValue(Config::PATH_SITE_KEY, ScopeInterface::SCOPE_WEBSITE, $websiteCode)
+        );
+        self::assertSame(
+            'invalid-api-key',
+            $scopeConfig->getValue(Config::PATH_API_KEY, ScopeInterface::SCOPE_WEBSITE, $websiteCode)
+        );
+        self::assertFalse(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+        self::assertFalse(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CONTACT],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     * @magentoAppArea adminhtml
+     * @magentoDbIsolation enabled
+     */
+    public function testInvalidDefaultCredentialsDisableWebsiteProtection(): void
+    {
+        $websiteId = $this->getCurrentWebsiteId();
+        $writer = $this->objectManager->get(WriterInterface::class);
+        $writer->save(
+            Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+            '1',
+            ScopeInterface::SCOPE_WEBSITES,
+            $websiteId
+        );
+        $this->reinitializeConfig();
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $websiteCode = $this->getCurrentWebsiteCode();
+        self::assertTrue(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+
+        $this->save(null, [
+            'credentials' => [
+                'fields' => [
+                    'site_key' => ['value' => 'invalid-default-site-key'],
+                    'api_key' => ['value' => 'invalid-default-api-key'],
+                ],
+            ],
+            'protected_forms' => ['fields' => ['customer_login' => ['value' => '0']]],
+        ]);
+
+        $this->reinitializeConfig();
+        self::assertSame(
+            'invalid-default-site-key',
+            $scopeConfig->getValue(Config::PATH_SITE_KEY)
+        );
+        self::assertFalse(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     * @magentoAppArea adminhtml
+     * @magentoDbIsolation enabled
+     */
+    public function testMissingCredentialDisablesEnabledForm(): void
+    {
+        $websiteId = $this->getCurrentWebsiteId();
+        $this->save($websiteId, [
+            'credentials' => ['fields' => ['site_key' => ['value' => 'site-key']]],
+            'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
+        ]);
 
         $this->reinitializeConfig();
         $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
         $websiteCode = $this->getCurrentWebsiteCode();
 
-        self::assertNull(
+        self::assertSame(
+            'site-key',
             $scopeConfig->getValue('private_captcha/credentials/site_key', ScopeInterface::SCOPE_WEBSITE, $websiteCode)
         );
         self::assertFalse(
@@ -143,46 +265,6 @@ final class AdminConfigSaveTest extends TestCase
         self::assertSame(
             'default-api-key',
             $scopeConfig->getValue(Config::PATH_API_KEY, ScopeInterface::SCOPE_WEBSITE, $websiteCode)
-        );
-    }
-
-    /**
-     * @magentoAppIsolation enabled
-     * @magentoAppArea adminhtml
-     * @magentoDbIsolation enabled
-     * @magentoConfigFixture default private_captcha/credentials/site_key default-site-key
-     * @magentoConfigFixture default private_captcha/credentials/api_key default-api-key
-     * @magentoConfigFixture current_website private_captcha/protected_forms/contact_form 1
-     */
-    #[ConfigFixture('private_captcha/credentials/site_key', 'default-site-key')]
-    #[ConfigFixture('private_captcha/credentials/api_key', 'default-api-key')]
-    #[ConfigFixture('private_captcha/protected_forms/contact_form', '1', ScopeInterface::SCOPE_WEBSITE, 'base')]
-    public function testDefaultCredentialRemovalIsRejectedForAnInheritingEnabledWebsite(): void
-    {
-        $this->save(null, [
-            'credentials' => [
-                'fields' => [
-                    'site_key' => ['value' => 'default-site-key'],
-                    'api_key' => ['value' => 'default-api-key'],
-                ],
-            ],
-        ]);
-        $this->save($this->getCurrentWebsiteId(), [
-            'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
-        ]);
-
-        try {
-            $this->save(null, [
-                'credentials' => ['fields' => ['site_key' => ['value' => '']]],
-            ]);
-            self::fail('Expected removing the inherited Site Key to reject the save.');
-        } catch (LocalizedException) {
-        }
-
-        $this->reinitializeConfig();
-        self::assertSame(
-            'default-site-key',
-            $this->objectManager->get(ScopeConfigInterface::class)->getValue('private_captcha/credentials/site_key')
         );
     }
 

@@ -16,11 +16,15 @@ use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveValidator;
+use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveValidationResult;
+use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\CurrentSettingsTester;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
 
 require_once dirname(__DIR__, 4) . '/Model/CustomDomain.php';
 require_once dirname(__DIR__, 4) . '/Model/Config.php';
+require_once dirname(__DIR__, 4) . '/Model/Adminhtml/CurrentSettingsTester.php';
+require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveValidationResult.php';
 require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveValidator.php';
 
 final class ConfigSaveValidatorTest extends TestCase
@@ -208,20 +212,123 @@ final class ConfigSaveValidatorTest extends TestCase
         ])));
     }
 
-    public function testLockedCredentialsDoNotAcceptPostedValues(): void
+    public function testMissingLockedCredentialsDisablePostedForms(): void
     {
         $validator = $this->createValidator(
             [],
             [Config::PATH_SITE_KEY => true, Config::PATH_API_KEY => true]
         );
-
-        $this->expectException(LocalizedException::class);
-        $this->expectExceptionMessage('Site Key and API Key');
-
-        $validator->validate($this->createSaveConfig('1', $this->buildGroups([
+        $config = $this->createSaveConfig('1', $this->buildGroups([
             'credentials' => ['site_key' => 'posted-site-key', 'api_key' => 'posted-api-key'],
             'protected_forms' => ['contact_form' => '1'],
+        ]));
+
+        $validator->validate($config);
+
+        self::assertSame('0', $config->getData('groups')['protected_forms']['fields']['contact_form']['value']);
+    }
+
+    public function testFailedSettingsTestDisablesEveryForm(): void
+    {
+        $settingsTester = $this->createStub(CurrentSettingsTester::class);
+        $settingsTester->method('test')->willReturn(false);
+        $validator = $this->createValidator([], [], null, $settingsTester);
+        $config = $this->createSaveConfig('1', $this->buildGroups([
+            'credentials' => ['site_key' => 'site-key', 'api_key' => 'api-key'],
+            'protected_forms' => ['contact_form' => '1'],
+        ]));
+
+        $result = $validator->validate($config);
+
+        self::assertTrue($result->settingsTestFailed);
+        $fields = $config->getData('groups')['protected_forms']['fields'];
+        self::assertCount(count(Config::FORM_PATHS), $fields);
+        foreach ($fields as $field) {
+            self::assertSame('0', $field['value']);
+        }
+    }
+
+    public function testCredentialsAreTestedWithoutEnabledForms(): void
+    {
+        $settingsTester = $this->createMock(CurrentSettingsTester::class);
+        $settingsTester->expects(self::once())
+            ->method('test')
+            ->with('api-key', null)
+            ->willReturn(false);
+        $validator = $this->createValidator([], [], null, $settingsTester);
+        $config = $this->createSaveConfig('1', $this->buildGroups([
+            'credentials' => ['site_key' => 'site-key', 'api_key' => 'api-key'],
+        ]));
+
+        $result = $validator->validate($config);
+
+        self::assertTrue($result->settingsTestFailed);
+        self::assertArrayNotHasKey('protected_forms', $config->getData('groups'));
+    }
+
+    public function testFailedSettingsTestRejectsReadOnlyEnabledForm(): void
+    {
+        $settingsTester = $this->createStub(CurrentSettingsTester::class);
+        $settingsTester->method('test')->willReturn(false);
+        $contactPath = Config::FORM_PATHS[Config::FORM_CONTACT];
+        $validator = $this->createValidator(
+            [$contactPath => '1'],
+            [$contactPath => true],
+            null,
+            $settingsTester
+        );
+
+        $this->expectException(LocalizedException::class);
+        $this->expectExceptionMessage('locked by deployed configuration');
+
+        $validator->validate($this->createSaveConfig('1', $this->buildGroups([
+            'credentials' => ['site_key' => 'site-key', 'api_key' => 'api-key'],
         ])));
+    }
+
+    public function testDefaultSaveTestsDecryptedWebsiteApiKeyOverride(): void
+    {
+        $settingsTester = $this->createMock(CurrentSettingsTester::class);
+        $settingsTester->expects(self::once())
+            ->method('test')
+            ->with('decrypted-api-key', null)
+            ->willReturn(true);
+        $values = [
+            ScopeInterface::SCOPE_WEBSITES . ':' . Config::PATH_SITE_KEY => 'website-site-key',
+            ScopeInterface::SCOPE_WEBSITES . ':' . Config::PATH_API_KEY => 'decrypted-api-key',
+            ScopeInterface::SCOPE_WEBSITES . ':' . Config::FORM_PATHS[Config::FORM_CONTACT] => '1',
+        ];
+        $validator = $this->createValidator($values, [], null, $settingsTester, true);
+
+        $result = $validator->validate($this->createSaveConfig(null, $this->buildGroups([
+            'protected_forms' => ['contact_form' => '0'],
+        ])));
+
+        self::assertFalse($result->settingsTestFailed);
+    }
+
+    public function testFailedDefaultSettingsDisableDefaultFormsWhenWebsiteSettingsPass(): void
+    {
+        $settingsTester = $this->createStub(CurrentSettingsTester::class);
+        $settingsTester->method('test')->willReturnCallback(
+            static fn (string $apiKey): bool => $apiKey === 'website-api-key'
+        );
+        $values = [
+            ScopeInterface::SCOPE_WEBSITES . ':' . Config::PATH_SITE_KEY => 'website-site-key',
+            ScopeInterface::SCOPE_WEBSITES . ':' . Config::PATH_API_KEY => 'website-api-key',
+            ScopeInterface::SCOPE_WEBSITES . ':' . Config::FORM_PATHS[Config::FORM_CONTACT] => '1',
+        ];
+        $validator = $this->createValidator($values, [], null, $settingsTester, true);
+        $config = $this->createSaveConfig(null, $this->buildGroups([
+            'credentials' => ['site_key' => 'default-site-key', 'api_key' => 'invalid-default-api-key'],
+            'protected_forms' => ['contact_form' => '1'],
+        ]));
+
+        $result = $validator->validate($config);
+
+        self::assertTrue($result->settingsTestFailed);
+        self::assertSame([], $result->websiteIdsToDisable);
+        self::assertSame('0', $config->getData('groups')['protected_forms']['fields']['contact_form']['value']);
     }
 
     /**
@@ -232,7 +339,9 @@ final class ConfigSaveValidatorTest extends TestCase
     private function createValidator(
         array $values = [],
         array $lockedPaths = [],
-        ?callable $isReadOnly = null
+        ?callable $isReadOnly = null,
+        ?CurrentSettingsTester $settingsTester = null,
+        bool $projectWebsite = false
     ): ConfigSaveValidator
     {
         $scopeConfig = $this->createStub(ReinitableConfigInterface::class);
@@ -261,6 +370,7 @@ final class ConfigSaveValidatorTest extends TestCase
 
         $website = $this->createStub(WebsiteInterface::class);
         $website->method('getCode')->willReturn('website-a');
+        $website->method('getId')->willReturn(1);
 
         $store = $this->createStub(StoreInterface::class);
         $store->method('getCode')->willReturn('store-a');
@@ -269,6 +379,22 @@ final class ConfigSaveValidatorTest extends TestCase
         $storeManager = $this->createStub(StoreManagerInterface::class);
         $storeManager->method('getWebsite')->willReturn($website);
         $storeManager->method('getStore')->willReturn($store);
+        $storeManager->method('getWebsites')->willReturn($projectWebsite ? [$website] : []);
+
+        $websiteConfig = new class () extends MagentoConfig {
+            public function __construct()
+            {
+            }
+
+            public function getConfigDataValue($path, &$inherit = null, $configData = null): string
+            {
+                $inherit = false;
+
+                return $path === Config::PATH_API_KEY ? 'encrypted-api-key' : '';
+            }
+        };
+        $configFactory = $this->createStub(ConfigFactory::class);
+        $configFactory->method('create')->willReturn($websiteConfig);
 
         $settingChecker = $this->createStub(SettingChecker::class);
         $settingChecker->method('isReadOnly')->willReturnCallback(
@@ -284,10 +410,19 @@ final class ConfigSaveValidatorTest extends TestCase
         return new ConfigSaveValidator(
             $scopeConfig,
             $storeManager,
-            $this->createStub(ConfigFactory::class),
+            $configFactory,
             $settingChecker,
-            new CustomDomain()
+            new CustomDomain(),
+            $settingsTester ?? $this->createSettingsTester()
         );
+    }
+
+    private function createSettingsTester(): CurrentSettingsTester
+    {
+        $settingsTester = $this->createStub(CurrentSettingsTester::class);
+        $settingsTester->method('test')->willReturn(true);
+
+        return $settingsTester;
     }
 
     /**
@@ -304,7 +439,7 @@ final class ConfigSaveValidatorTest extends TestCase
             /** @param array<string, array{fields: array<string, array{value: string, inherit?: string}>}> $groups */
             public function __construct(
                 private readonly ?string $website,
-                private readonly array $groups,
+                private array $groups,
                 private readonly ?string $store,
                 private readonly ?string $scope
             ) {
@@ -339,6 +474,15 @@ final class ConfigSaveValidatorTest extends TestCase
                     'website' => $this->website,
                     default => null,
                 };
+            }
+
+            public function setData($key, $value = null)
+            {
+                if ($key === 'groups' && is_array($value)) {
+                    $this->groups = $value;
+                }
+
+                return $this;
             }
 
             public function getConfigDataValue($path, &$inherit = null, $configData = null): string
