@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="private_captcha" translate="label" type="text" sortOrder="510"
+                 showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Private Captcha</label>
+            <tab>security</tab>
+            <resource>PrivateCaptcha_PrivateCaptcha::config</resource>
+            <group id="credentials" translate="label" type="text" sortOrder="10"
+                   showInDefault="1" showInWebsite="1" showInStore="0">
+                <label>Credentials</label>
+                <field id="site_key" translate="label comment" type="text" sortOrder="10"
+                       showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Site Key</label>
+                    <comment>Your Private Captcha property site key.</comment>
+                </field>
+                <field id="api_key" translate="label comment" type="obscure" sortOrder="20"
+                       showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>API Key</label>
+                    <comment>Your Private Captcha API key, created in the account settings.</comment>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                </field>
+            </group>
+            <group id="protected_forms" translate="label" type="text" sortOrder="20"
+                   showInDefault="1" showInWebsite="1" showInStore="0">
+                <label>Protected Forms</label>
+                <field id="coexistence_warning" translate="label" type="note" sortOrder="5"
+                       showInDefault="1" showInWebsite="1" showInStore="0">
+                    <frontend_model>PrivateCaptcha\PrivateCaptcha\Block\Adminhtml\System\Config\Form\Field\CoexistenceWarning</frontend_model>
+                </field>
+                <field id="customer_login" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Customer Login</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="customer_registration" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Create Account / Registration</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="forgot_password" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Forgot Password</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="contact_form" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Contact Form</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="product_review" translate="label" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Product Review Submission</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="email_to_friend" translate="label" type="select" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Email to a Friend</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="wishlist_share" translate="label" type="select" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Share Wishlist</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="orders_returns" translate="label" type="select" sortOrder="80" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Orders &amp; Returns</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+            </group>
+            <group id="advanced" translate="label" type="text" sortOrder="30"
+                   showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Advanced</label>
+                <fieldset_css>config-advanced</fieldset_css>
+                <field id="eu_isolation" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>EU Isolation</label>
+                    <comment>Enable to use EU-only endpoints for GDPR compliance. Ignored if custom domain is set.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="custom_domain" translate="label comment" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Custom Domain</label>
+                    <comment>Custom root domain for Private Captcha API endpoints. Leave empty to use privatecaptcha.com.</comment>
+                </field>
+                <field id="debug_mode" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Debug Mode</label>
+                    <comment>Captcha widget prints verbose logs to browser console to help with debugging.</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="custom_styles" translate="label comment hint" type="textarea" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Custom Styles</label>
+                    <comment>Custom CSS styles for the captcha widget. Leave empty to use default styles.</comment>
+                    <hint>font-size: inherit;</hint>
+                </field>
+                <field id="language" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Language</label>
+                    <comment>Language for the captcha widget interface.</comment>
+                    <source_model>PrivateCaptcha\PrivateCaptcha\Model\Config\Source\Language</source_model>
+                </field>
+                <field id="start_mode" translate="label comment" type="select" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Start Mode</label>
+                    <comment>When to start the captcha challenge. "Auto" starts when user starts filling in the form.</comment>
+                    <source_model>PrivateCaptcha\PrivateCaptcha\Model\Config\Source\StartMode</source_model>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

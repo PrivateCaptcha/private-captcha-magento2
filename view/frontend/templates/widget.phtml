@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+use PrivateCaptcha\PrivateCaptcha\ViewModel\WidgetConfig;
+
+/** @var \Magento\Framework\Escaper $escaper */
+/** @var \Magento\Framework\View\Element\Template $block */
+
+$viewModel = $block->getData('view_model');
+if (!$viewModel instanceof WidgetConfig) {
+    return;
+}
+
+$form = (string) $block->getData('private_captcha_form');
+$instanceId = (string) ($block->getData('private_captcha_instance_id') ?: $block->getNameInLayout());
+$storeId = $block->hasData('private_captcha_store_id')
+    ? (int) $block->getData('private_captcha_store_id')
+    : null;
+$widget = $viewModel->getWidgetConfig($form, $instanceId, $storeId);
+if ($widget === null) {
+    return;
+}
+
+$placement = $block->getData('private_captcha_placement') === 'before-toolbar' ? 'before-toolbar' : null;
+$detachedTarget = $block->getData('private_captcha_detached_target') === 'previous-form' ? 'previous-form' : null;
+$mageInit = json_encode([
+    'PrivateCaptcha_PrivateCaptcha/js/widget' => [
+        'scriptUrl' => $widget['script_url'],
+        'placement' => $placement,
+        'detachedTarget' => $detachedTarget,
+        'errorMessage' => (string) __('Private Captcha could not start. Please refresh and try again.'),
+    ],
+], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
+?>
+<div class="private-captcha-container field" data-mage-init="<?= $escaper->escapeHtmlAttr($mageInit) ?>">
+    <div class="private-captcha"
+         id="<?= $escaper->escapeHtmlAttr($widget['id']) ?>"
+         data-sitekey="<?= $escaper->escapeHtmlAttr($widget['site_key']) ?>"
+         data-solution-field="<?= $escaper->escapeHtmlAttr($widget['solution_field']) ?>"
+         data-store-variable="<?= $escaper->escapeHtmlAttr($widget['store_variable']) ?>"
+         data-lang="<?= $escaper->escapeHtmlAttr($widget['language']) ?>"
+         data-start-mode="<?= $escaper->escapeHtmlAttr($widget['start_mode']) ?>"
+        <?php if ($widget['eu']): ?> data-eu="true"<?php endif; ?>
+        <?php if ($widget['debug']): ?> data-debug="true"<?php endif; ?>
+        <?php if ($widget['puzzle_endpoint'] !== null): ?>
+            data-puzzle-endpoint="<?= $escaper->escapeHtmlAttr($widget['puzzle_endpoint']) ?>"
+        <?php endif; ?>
+        <?php if ($widget['styles'] !== ''): ?>
+            data-styles="<?= $escaper->escapeHtmlAttr($widget['styles']) ?>"
+        <?php endif; ?>></div>
+    <p class="private-captcha-error" role="alert" hidden></p>
+</div>

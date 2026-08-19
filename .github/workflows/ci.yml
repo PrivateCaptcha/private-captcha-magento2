@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSER_NO_INTERACTION: '1'
+  COMPOSER_PROCESS_TIMEOUT: '0'
+  COMPOSER_SHA256: 5ee7125f8a30a34d246cefdc0bc85b8a783b28f2aec968994118512350d28027
+  COMPOSER_VERSION: '2.10.2'
+  MAGE_OS_VERSION: '2.3.0'
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.1'
+          extensions: dom
+          coverage: none
+          tools: none
+        env:
+          fail-fast: true
+
+      - name: Install Composer
+        shell: bash
+        run: |
+          composer_path="$RUNNER_TEMP/composer"
+          curl --fail --silent --show-error --location \
+            "https://getcomposer.org/download/${COMPOSER_VERSION}/composer.phar" \
+            --output "$composer_path"
+          printf '%s  %s\n' "$COMPOSER_SHA256" "$composer_path" | sha256sum --check --strict
+          chmod +x "$composer_path"
+          "$composer_path" --version --no-ansi
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Validate Composer metadata
+        run: composer validate composer.json --strict
+
+      - name: Check PHP syntax on the minimum supported version
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.php|*.phtml) php -l "$file" ;;
+            esac
+          done < <(git ls-files -z .)
+
+      - name: Check XML syntax
+        shell: bash
+        run: |
+          while IFS= read -r -d '' file; do
+            php -r '$document = new DOMDocument(); $document->load($argv[1], LIBXML_NONET) || exit(1);' "$file"
+          done < <(git ls-files -z '*.xml')
+
+      - name: Run JavaScript unit tests
+        run: node --test Test/Js/*.test.js
+
+  php-quality:
+    name: PHP quality and unit tests
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      MAGENTO_ROOT: /tmp/mage-os
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, gd, intl, mbstring, pdo_mysql, soap, sodium, xsl, zip
+          coverage: none
+          tools: none
+          ini-values: memory_limit=2G
+        env:
+          fail-fast: true
+
+      - name: Install Composer
+        shell: bash
+        run: |
+          composer_path="$RUNNER_TEMP/composer"
+          curl --fail --silent --show-error --location \
+            "https://getcomposer.org/download/${COMPOSER_VERSION}/composer.phar" \
+            --output "$composer_path"
+          printf '%s  %s\n' "$COMPOSER_SHA256" "$composer_path" | sha256sum --check --strict
+          chmod +x "$composer_path"
+          "$composer_path" --version --no-ansi
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Locate Composer cache
+        id: composer-cache
+        run: echo "dir=$(composer config --global cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ env.COMPOSER_VERSION }}-${{ runner.os }}-php-8.4-mage-os-${{ env.MAGE_OS_VERSION }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ env.COMPOSER_VERSION }}-${{ runner.os }}-php-8.4-mage-os-${{ env.MAGE_OS_VERSION }}-
+            composer-${{ env.COMPOSER_VERSION }}-${{ runner.os }}-php-8.4-
+
+      # The public Mage-OS package set provides Magento-compatible dependencies
+      # without exposing repo.magento.com credentials to pull requests. This is
+      # a PR smoke signal, not a substitute for the authenticated release matrix.
+      - name: Install Magento-compatible test dependencies
+        shell: bash
+        run: |
+          composer create-project \
+            --repository-url=https://repo.mage-os.org/ \
+            --prefer-dist \
+            --no-progress \
+            "mage-os/project-community-edition:${MAGE_OS_VERSION}" \
+            "$MAGENTO_ROOT"
+          composer --working-dir="$MAGENTO_ROOT" config \
+            repositories.private-captcha path "$GITHUB_WORKSPACE"
+          composer --working-dir="$MAGENTO_ROOT" require \
+            --prefer-dist \
+            --no-progress \
+            --with-all-dependencies \
+            'private-captcha/magento2:@dev'
+
+      - name: Run Magento coding standard
+        run: >-
+          "$MAGENTO_ROOT/vendor/bin/phpcs"
+          --standard=Magento2
+          --extensions=php,phtml
+          --error-severity=10
+          --ignore-annotations
+          --ignore='*/Test/*'
+          .
+
+      - name: Run PHPStan
+        working-directory: .
+        run: >-
+          "$MAGENTO_ROOT/vendor/bin/phpstan" analyse
+          --configuration=phpstan.neon
+          --level=5
+          --no-progress
+          --memory-limit=1G
+
+      - name: Run PHP unit tests
+        working-directory: ${{ env.MAGENTO_ROOT }}
+        run: >-
+          vendor/bin/phpunit
+          -c dev/tests/unit/phpunit.xml.dist
+          "$GITHUB_WORKSPACE/Test/Unit"

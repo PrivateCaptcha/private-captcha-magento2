@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="product.review.form.fields.before">
+            <block class="Magento\Framework\View\Element\Template"
+                   name="private_captcha.product_review"
+                   template="PrivateCaptcha_PrivateCaptcha::widget.phtml"
+                   after="-">
+                <arguments>
+                    <argument name="view_model" xsi:type="object">PrivateCaptcha\PrivateCaptcha\ViewModel\WidgetConfig</argument>
+                    <argument name="private_captcha_form" xsi:type="string">product_review</argument>
+                    <argument name="private_captcha_instance_id" xsi:type="string">product-review</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

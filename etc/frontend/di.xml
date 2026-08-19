@@ -1,0 +1,307 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\Wishlist\Controller\Index\Send">
+        <plugin name="private_captcha_scrub_wishlist_authentication_state"
+                type="PrivateCaptcha\PrivateCaptcha\Plugin\Wishlist\ScrubAuthenticationState"
+                sortOrder="20"/>
+    </type>
+    <type name="Magento\Sales\Block\Widget\Guest\Form">
+        <plugin name="private_captcha_orders_returns_widget"
+                type="PrivateCaptcha\PrivateCaptcha\Plugin\Sales\GuestFormPlugin"
+                sortOrder="20"/>
+    </type>
+    <type name="PrivateCaptcha\PrivateCaptcha\Model\Validation\ProtectedActionResolver">
+        <arguments>
+            <argument name="customerSession" xsi:type="object">Magento\Customer\Model\Session\Proxy</argument>
+            <argument name="protectedActions" xsi:type="array">
+                <item name="contact_form" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\Contact\Controller\Index\Post</item>
+                    <item name="method" xsi:type="string">POST</item>
+                </item>
+                <item name="customer_registration" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\Customer\Controller\Account\CreatePost</item>
+                    <item name="method" xsi:type="string">POST</item>
+                    <item name="guest_only" xsi:type="boolean">true</item>
+                </item>
+                <item name="customer_login" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\Customer\Controller\Account\LoginPost</item>
+                    <item name="method" xsi:type="string">POST</item>
+                    <item name="guest_only" xsi:type="boolean">true</item>
+                </item>
+                <item name="customer_login_ajax" xsi:type="array">
+                    <item name="form" xsi:type="string">customer_login</item>
+                    <item name="controller" xsi:type="string">Magento\Customer\Controller\Ajax\Login</item>
+                    <item name="method" xsi:type="string">POST</item>
+                    <item name="guest_only" xsi:type="boolean">true</item>
+                </item>
+                <item name="forgot_password" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\Customer\Controller\Account\ForgotPasswordPost</item>
+                    <item name="method" xsi:type="string">POST</item>
+                </item>
+                <item name="product_review" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\Review\Controller\Product\Post</item>
+                    <item name="method" xsi:type="string">POST</item>
+                    <item name="review_eligible" xsi:type="boolean">true</item>
+                </item>
+                <item name="email_to_friend" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\SendFriend\Controller\Product\Sendmail</item>
+                    <item name="method" xsi:type="string">POST</item>
+                    <item name="sendfriend_eligible" xsi:type="boolean">true</item>
+                </item>
+                <item name="wishlist_share" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\Wishlist\Controller\Index\Send</item>
+                    <item name="method" xsi:type="string">POST</item>
+                    <item name="customer_only" xsi:type="boolean">true</item>
+                </item>
+                <item name="orders_returns" xsi:type="array">
+                    <item name="controller" xsi:type="string">Magento\Sales\Controller\Guest\View</item>
+                    <item name="method" xsi:type="string">POST</item>
+                    <item name="guest_only" xsi:type="boolean">true</item>
+                </item>
+            </argument>
+            <argument name="reviewHelper" xsi:type="object">Magento\Review\Helper\Data</argument>
+            <argument name="reviewConfig" xsi:type="object">Magento\Review\Model\Review\Config</argument>
+            <argument name="sendFriendHelper" xsi:type="object">Magento\SendFriend\Helper\Data</argument>
+        </arguments>
+    </type>
+    <type name="PrivateCaptcha\PrivateCaptcha\Model\Form\StateManager">
+        <arguments>
+            <argument name="stateStores" xsi:type="array">
+                <item name="data_persistor" xsi:type="object">Magento\Framework\App\Request\DataPersistorInterface</item>
+                <item name="customer_session" xsi:type="object">Magento\Customer\Model\Session\Proxy</item>
+                <item name="review_session" xsi:type="object">Magento\Review\Model\Session</item>
+                <item name="catalog_session" xsi:type="object">Magento\Catalog\Model\Session\Proxy</item>
+                <item name="wishlist_session" xsi:type="object">Magento\Wishlist\Model\Session</item>
+            </argument>
+            <argument name="formFactory" xsi:type="object">Magento\Customer\Model\Metadata\FormFactory</argument>
+            <argument name="policies" xsi:type="array">
+                <item name="contact_form" xsi:type="array">
+                    <item name="storage" xsi:type="string">data_persistor</item>
+                    <item name="key" xsi:type="string">contact_us</item>
+                    <item name="fields" xsi:type="array">
+                        <item name="name" xsi:type="boolean">true</item>
+                        <item name="email" xsi:type="boolean">true</item>
+                        <item name="telephone" xsi:type="boolean">true</item>
+                        <item name="comment" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="native_validation_fields" xsi:type="array">
+                        <item name="hideit" xsi:type="boolean">true</item>
+                    </item>
+                </item>
+                <item name="customer_registration" xsi:type="array">
+                    <item name="storage" xsi:type="string">customer_session</item>
+                    <item name="key" xsi:type="string">customer_form_data</item>
+                    <item name="fields" xsi:type="array">
+                        <item name="prefix" xsi:type="boolean">true</item>
+                        <item name="firstname" xsi:type="boolean">true</item>
+                        <item name="middlename" xsi:type="boolean">true</item>
+                        <item name="lastname" xsi:type="boolean">true</item>
+                        <item name="suffix" xsi:type="boolean">true</item>
+                        <item name="email" xsi:type="boolean">true</item>
+                        <item name="is_subscribed" xsi:type="boolean">true</item>
+                        <item name="dob" xsi:type="boolean">true</item>
+                        <item name="taxvat" xsi:type="boolean">true</item>
+                        <item name="gender" xsi:type="boolean">true</item>
+                        <item name="create_address" xsi:type="boolean">true</item>
+                        <item name="company" xsi:type="boolean">true</item>
+                        <item name="telephone" xsi:type="boolean">true</item>
+                        <item name="fax" xsi:type="boolean">true</item>
+                        <item name="street" xsi:type="array">
+                            <item name="*" xsi:type="boolean">true</item>
+                        </item>
+                        <item name="vat_id" xsi:type="boolean">true</item>
+                        <item name="country_id" xsi:type="boolean">true</item>
+                        <item name="region_id" xsi:type="boolean">true</item>
+                        <item name="region" xsi:type="boolean">true</item>
+                        <item name="city" xsi:type="boolean">true</item>
+                        <item name="postcode" xsi:type="boolean">true</item>
+                        <item name="default_billing" xsi:type="boolean">true</item>
+                        <item name="default_shipping" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="transient_fields" xsi:type="array">
+                        <item name="form_key" xsi:type="boolean">true</item>
+                        <item name="password" xsi:type="boolean">true</item>
+                        <item name="password_confirmation" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="native_validation_fields" xsi:type="array">
+                        <item name="captcha" xsi:type="array">
+                            <item name="user_create" xsi:type="boolean">true</item>
+                        </item>
+                    </item>
+                </item>
+                <item name="customer_login" xsi:type="array">
+                    <item name="storage" xsi:type="string">customer_session</item>
+                    <item name="key" xsi:type="string">username</item>
+                    <item name="scalar_field" xsi:type="string">username</item>
+                    <item name="scalar_path" xsi:type="array">
+                        <item name="0" xsi:type="string">login</item>
+                        <item name="1" xsi:type="string">username</item>
+                    </item>
+                    <item name="fields" xsi:type="array">
+                        <item name="username" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="transient_fields" xsi:type="array">
+                        <item name="form_key" xsi:type="boolean">true</item>
+                        <item name="login" xsi:type="array">
+                            <item name="username" xsi:type="boolean">true</item>
+                            <item name="password" xsi:type="boolean">true</item>
+                        </item>
+                    </item>
+                    <item name="native_validation_fields" xsi:type="array">
+                        <item name="captcha" xsi:type="array">
+                            <item name="user_login" xsi:type="boolean">true</item>
+                        </item>
+                    </item>
+                </item>
+                <item name="forgot_password" xsi:type="array">
+                    <item name="storage" xsi:type="string">customer_session</item>
+                    <item name="key" xsi:type="string">forgotten_email</item>
+                    <item name="scalar_field" xsi:type="string">email</item>
+                    <item name="fields" xsi:type="array">
+                        <item name="email" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="native_validation_fields" xsi:type="array">
+                        <item name="captcha" xsi:type="array">
+                            <item name="user_forgotpassword" xsi:type="boolean">true</item>
+                        </item>
+                    </item>
+                </item>
+                <item name="product_review" xsi:type="array">
+                    <item name="storage" xsi:type="string">review_session</item>
+                    <item name="key" xsi:type="string">form_data</item>
+                    <item name="fields" xsi:type="array">
+                        <item name="nickname" xsi:type="boolean">true</item>
+                        <item name="title" xsi:type="boolean">true</item>
+                        <item name="detail" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="transient_fields" xsi:type="array">
+                        <item name="form_key" xsi:type="boolean">true</item>
+                        <item name="g-recaptcha-response" xsi:type="boolean">true</item>
+                        <item name="ratings" xsi:type="array">
+                            <item name="*" xsi:type="boolean">true</item>
+                        </item>
+                    </item>
+                    <item name="route_parameters" xsi:type="array">
+                        <item name="id" xsi:type="string">positive_int</item>
+                    </item>
+                </item>
+                <item name="email_to_friend" xsi:type="array">
+                    <item name="storage" xsi:type="string">catalog_session</item>
+                    <item name="key" xsi:type="string">sendfriend_form_data</item>
+                    <item name="fields" xsi:type="array">
+                        <item name="sender" xsi:type="array">
+                            <item name="name" xsi:type="boolean">true</item>
+                            <item name="email" xsi:type="boolean">true</item>
+                            <item name="message" xsi:type="boolean">true</item>
+                        </item>
+                        <item name="recipients" xsi:type="array">
+                            <item name="name" xsi:type="array">
+                                <item name="*" xsi:type="boolean">true</item>
+                            </item>
+                            <item name="email" xsi:type="array">
+                                <item name="*" xsi:type="boolean">true</item>
+                            </item>
+                        </item>
+                    </item>
+                    <item name="native_validation_fields" xsi:type="array">
+                        <item name="captcha" xsi:type="array">
+                            <item name="product_sendtofriend_form" xsi:type="boolean">true</item>
+                        </item>
+                    </item>
+                    <item name="transient_fields" xsi:type="array">
+                        <item name="form_key" xsi:type="boolean">true</item>
+                        <item name="g-recaptcha-response" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="route_parameters" xsi:type="array">
+                        <item name="id" xsi:type="string">positive_int</item>
+                        <item name="cat_id" xsi:type="string">positive_int</item>
+                    </item>
+                </item>
+                <item name="wishlist_share" xsi:type="array">
+                    <item name="storage" xsi:type="string">wishlist_session</item>
+                    <item name="key" xsi:type="string">sharing_form</item>
+                    <item name="fields" xsi:type="array">
+                        <item name="emails" xsi:type="boolean">true</item>
+                        <item name="message" xsi:type="boolean">true</item>
+                        <item name="rss_url" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="native_validation_fields" xsi:type="array">
+                        <item name="captcha" xsi:type="array">
+                            <item name="share_wishlist_form" xsi:type="boolean">true</item>
+                        </item>
+                    </item>
+                    <item name="transient_fields" xsi:type="array">
+                        <item name="form_key" xsi:type="boolean">true</item>
+                        <item name="g-recaptcha-response" xsi:type="boolean">true</item>
+                    </item>
+                    <item name="route_parameters" xsi:type="array">
+                        <item name="wishlist_id" xsi:type="string">positive_int</item>
+                    </item>
+                </item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="PrivateCaptcha\PrivateCaptcha\Model\Provider\Failure\InternalRedirect">
+        <arguments>
+            <argument name="request" xsi:type="object">Magento\Framework\App\Request\Http</argument>
+            <argument name="routes" xsi:type="array">
+                <item name="contact_form" xsi:type="string">contact/index/index</item>
+                <item name="customer_registration" xsi:type="string">customer/account/create</item>
+                <item name="customer_login" xsi:type="string">customer/account/login</item>
+                <item name="forgot_password" xsi:type="string">customer/account/forgotpassword</item>
+                <item name="product_review" xsi:type="array">
+                    <item name="route" xsi:type="string">catalog/product/view</item>
+                    <item name="parameters" xsi:type="array">
+                        <item name="id" xsi:type="string">positive_int</item>
+                    </item>
+                    <item name="fallback" xsi:type="string">cms/index/index</item>
+                </item>
+                <item name="email_to_friend" xsi:type="array">
+                    <item name="route" xsi:type="string">sendfriend/product/send</item>
+                    <item name="parameters" xsi:type="array">
+                        <item name="id" xsi:type="string">positive_int</item>
+                        <item name="cat_id" xsi:type="string">optional_positive_int</item>
+                    </item>
+                    <item name="fallback" xsi:type="string">cms/index/index</item>
+                </item>
+                <item name="wishlist_share" xsi:type="array">
+                    <item name="route" xsi:type="string">wishlist/index/share</item>
+                    <item name="parameters" xsi:type="array">
+                        <item name="wishlist_id" xsi:type="string">optional_positive_int</item>
+                    </item>
+                </item>
+                <item name="orders_returns" xsi:type="string">sales/guest/form</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Magento\Captcha\Observer\CheckUserCreateObserver">
+        <plugin name="private_captcha_scrub_registration_captcha_state"
+                type="PrivateCaptcha\PrivateCaptcha\Plugin\Captcha\ScrubRegistrationState"/>
+    </type>
+    <type name="Magento\Customer\Block\Account\AuthenticationPopup">
+        <arguments>
+            <argument name="layoutProcessors" xsi:type="array">
+                <item name="private_captcha_customer_login_popup" xsi:type="object">PrivateCaptcha\PrivateCaptcha\Block\Customer\LoginLayoutProcessor</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Magento\Checkout\Block\Onepage">
+        <arguments>
+            <argument name="layoutProcessors" xsi:type="array">
+                <item name="private_captcha_customer_login_checkout" xsi:type="object">PrivateCaptcha\PrivateCaptcha\Block\Customer\LoginLayoutProcessor</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Magento\Csp\Model\CompositePolicyCollector">
+        <arguments>
+            <argument name="collectors" xsi:type="array">
+                <item name="config" xsi:type="object" sortOrder="1">Magento\Csp\Model\Collector\ConfigCollector\Proxy</item>
+                <item name="whitelist" xsi:type="object" sortOrder="2">Magento\Csp\Model\Collector\CspWhitelistXmlCollector\Proxy</item>
+                <item name="dynamic" xsi:type="object" sortOrder="3">Magento\Csp\Model\Collector\DynamicCollector\Proxy</item>
+                <item name="private_captcha_custom_domain" xsi:type="object" sortOrder="4">PrivateCaptcha\PrivateCaptcha\Model\Csp\CustomDomainPolicyCollector</item>
+                <item name="controller" xsi:type="object" sortOrder="100">Magento\Csp\Model\Collector\ControllerCollector\Proxy</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="PrivateCaptcha\PrivateCaptcha\Model\Validation\VerifierInterface"
+                type="PrivateCaptcha\PrivateCaptcha\Model\Validation\SdkVerifier"/>
+    <type name="Magento\Config\Model\Config\TypePool">
+        <arguments>
+            <argument name="sensitive" xsi:type="array">
+                <item name="private_captcha/credentials/api_key" xsi:type="string">1</item>
+            </argument>
+            <argument name="environment" xsi:type="array">
+                <item name="private_captcha/credentials/site_key" xsi:type="string">1</item>
+                <item name="private_captcha/credentials/api_key" xsi:type="string">1</item>
+                <item name="private_captcha/advanced/custom_domain" xsi:type="string">1</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

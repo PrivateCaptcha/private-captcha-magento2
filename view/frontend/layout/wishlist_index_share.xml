@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="Magento\Framework\View\Element\Template"
+                   name="private_captcha.wishlist_share"
+                   template="PrivateCaptcha_PrivateCaptcha::widget.phtml"
+                   after="wishlist.sharing">
+                <arguments>
+                    <argument name="view_model" xsi:type="object">PrivateCaptcha\PrivateCaptcha\ViewModel\WidgetConfig</argument>
+                    <argument name="private_captcha_form" xsi:type="string">wishlist_share</argument>
+                    <argument name="private_captcha_instance_id" xsi:type="string">wishlist-share</argument>
+                    <argument name="private_captcha_placement" xsi:type="string">before-toolbar</argument>
+                    <argument name="private_captcha_detached_target" xsi:type="string">previous-form</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

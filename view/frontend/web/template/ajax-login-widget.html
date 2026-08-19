@@ -1,0 +1,19 @@
+<!-- ko if: widget && widget.id && widget.site_key && widget.script_url && widget.store_variable -->
+<div class="private-captcha-container field" data-bind="afterRender: afterRender">
+    <div class="private-captcha"
+         data-bind="attr: {
+            id: widget.id,
+            'data-sitekey': widget.site_key,
+            'data-solution-field': widget.solution_field,
+            'data-store-variable': widget.store_variable,
+            'data-lang': widget.language,
+            'data-start-mode': widget.start_mode,
+            'data-eu': widget.eu ? 'true' : null,
+            'data-debug': widget.debug ? 'true' : null,
+            'data-puzzle-endpoint': widget.puzzle_endpoint,
+            'data-styles': widget.styles || null
+         }"></div>
+    <input type="hidden" data-bind="attr: {name: markerField}, value: requestMarker" />
+    <p class="private-captcha-error" role="alert" hidden></p>
+</div>
+<!-- /ko -->
