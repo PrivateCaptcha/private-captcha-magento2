@@ -14,6 +14,7 @@
                        showInDefault="1" showInWebsite="1" showInStore="0">
                     <label>Site Key</label>
                     <comment>Your Private Captcha property site key.</comment>
+                    <hint>aaaaaaaabbbbccccddddeeeeeeeeeeee</hint>
                 </field>
                 <field id="api_key" translate="label comment" type="obscure" sortOrder="20"
                        showInDefault="1" showInWebsite="1" showInStore="0">
