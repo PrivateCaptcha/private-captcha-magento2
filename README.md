@@ -5,7 +5,7 @@
 ## Features
 
 - **Form Protection**: Most standard StoreFront forms (see [below](#supported-forms))
-- **Flexible Configuration**: Theme, language, start mode, and custom styling options per Website and Store
+- **Flexible Configuration**: Language, start mode, and custom styling options per Website and Store
 - **EU Compliance**: Support for EU-only endpoints and custom domains
 
 ## Installation
