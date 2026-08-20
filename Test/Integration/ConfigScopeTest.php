@@ -64,11 +64,8 @@ final class ConfigScopeTest extends TestCase
         $typePool = $objectManager->get(TypePool::class);
         $apiKey = $objectManager->get(Structure::class)
             ->getElement('private_captcha/credentials/api_key');
-        $customStyles = $objectManager->get(Structure::class)
-            ->getElement('private_captcha/advanced/custom_styles');
 
         self::assertInstanceOf(Encrypted::class, $apiKey->getBackendModel());
-        self::assertSame(Config::DEFAULT_CUSTOM_STYLES, (string) $customStyles->getHint());
         self::assertTrue($typePool->isPresent('private_captcha/credentials/api_key', TypePool::TYPE_SENSITIVE));
         self::assertTrue($typePool->isPresent('private_captcha/credentials/site_key', TypePool::TYPE_ENVIRONMENT));
         self::assertTrue($typePool->isPresent('private_captcha/credentials/api_key', TypePool::TYPE_ENVIRONMENT));

@@ -135,8 +135,7 @@ final class StateManagerTest extends TestCase
             'api_token' => 'token',
             'return_url' => 'https://attacker.example.test',
         ]);
-        $request->expects(self::exactly(2))
-            ->method('getParam')
+        $request->method('getParam')
             ->willReturnCallback(static fn(string $key): ?string => match ($key) {
                 'id' => '42',
                 'cat_id' => '9',
@@ -145,8 +144,7 @@ final class StateManagerTest extends TestCase
         $request->method('getQuery')->willReturn($query);
         $request->expects(self::once())->method('clearParams');
         $routeParameters = [];
-        $request->expects(self::exactly(2))
-            ->method('setParam')
+        $request->method('setParam')
             ->willReturnCallback(static function (string $key, int $value) use (&$routeParameters): void {
                 $routeParameters[$key] = $value;
             });

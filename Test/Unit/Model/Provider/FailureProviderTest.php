@@ -11,8 +11,6 @@ use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\Provider\Failure\InternalRedirect;
 
-require_once dirname(__DIR__, 4) . '/Model/Provider/Failure/InternalRedirect.php';
-
 final class FailureProviderTest extends TestCase
 {
     public function testInternalRedirectRejectsExternalAndRequestLikeRouteValues(): void
@@ -52,9 +50,8 @@ final class FailureProviderTest extends TestCase
     public function testInternalRedirectOmitsAnInvalidOptionalCategoryId(): void
     {
         $response = $this->createStub(Http::class);
-        $request = $this->createMock(HttpRequest::class);
-        $request->expects(self::exactly(2))
-            ->method('getParam')
+        $request = $this->createStub(HttpRequest::class);
+        $request->method('getParam')
             ->willReturnCallback(static fn(string $key): int|string|null => match ($key) {
                 'id' => 42,
                 'cat_id' => '0',

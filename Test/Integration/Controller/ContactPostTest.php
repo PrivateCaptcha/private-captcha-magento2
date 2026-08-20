@@ -17,6 +17,7 @@ final class ContactPostTest extends AbstractController
 {
     protected function tearDown(): void
     {
+        $this->restoreDependencies();
         parent::tearDown();
         $this->removeIgnitionHandlers();
     }
@@ -35,13 +36,9 @@ final class ContactPostTest extends AbstractController
         $mail->expects(self::once())->method('send');
         $this->replaceDependencies($verifier, $mail);
 
-        try {
-            $this->submit($this->requestPost(false));
+        $this->submit($this->requestPost(false));
 
-            self::assertSame([], $verifier->calls);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
     }
 
     /**
@@ -81,15 +78,11 @@ final class ContactPostTest extends AbstractController
         $mail->expects(self::never())->method('send');
         $this->replaceDependencies($verifier, $mail);
 
-        try {
-            $this->submit($this->requestPost(false));
+        $this->submit($this->requestPost(false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertSafePersistedState();
-            $this->assertContactRedirect();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertSafePersistedState();
+        $this->assertContactRedirect();
     }
 
     /**
@@ -106,14 +99,10 @@ final class ContactPostTest extends AbstractController
         $mail->expects(self::never())->method('send');
         $this->replaceDependencies($verifier, $mail);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
-            self::assertSafePersistedState();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
+        self::assertSafePersistedState();
     }
 
     /**
@@ -132,14 +121,10 @@ final class ContactPostTest extends AbstractController
         $post = $this->requestPost(true);
         $post['hideit'] = 'bot';
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
-            self::assertSafePersistedState();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
+        self::assertSafePersistedState();
     }
 
     /**
@@ -170,14 +155,10 @@ final class ContactPostTest extends AbstractController
             );
         $this->replaceDependencies($verifier, $mail);
 
-        try {
-            $this->getRequest()->setQueryValue([0 => ['private-captcha-solution' => 'query-solution']]);
-            $this->submit($this->requestPost(true));
+        $this->getRequest()->setQueryValue([0 => ['private-captcha-solution' => 'query-solution']]);
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
     }
 
     /**
@@ -198,14 +179,10 @@ final class ContactPostTest extends AbstractController
         $expectedState = $this->safePost();
         $expectedState['comment'] = '';
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
-            $this->assertSafePersistedState($expectedState);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CONTACT]], $verifier->calls);
+        $this->assertSafePersistedState($expectedState);
     }
 
     /**

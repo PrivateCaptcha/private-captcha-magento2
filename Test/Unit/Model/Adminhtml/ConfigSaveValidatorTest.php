@@ -16,25 +16,28 @@ use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveValidator;
-use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveValidationResult;
 use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\CurrentSettingsTester;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
-
-require_once dirname(__DIR__, 4) . '/Model/CustomDomain.php';
-require_once dirname(__DIR__, 4) . '/Model/Config.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/CurrentSettingsTester.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveValidationResult.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveValidator.php';
 
 final class ConfigSaveValidatorTest extends TestCase
 {
     public function testEncryptedPlaceholderUsesExistingEffectiveApiKey(): void
     {
-        $validator = $this->createValidator([
-            Config::PATH_SITE_KEY => 'site-key',
-            Config::PATH_API_KEY => 'existing-api-key',
-        ]);
+        $settingsTester = $this->createMock(CurrentSettingsTester::class);
+        $settingsTester->expects(self::once())
+            ->method('test')
+            ->with('existing-api-key', null)
+            ->willReturn(true);
+        $validator = $this->createValidator(
+            [
+                Config::PATH_SITE_KEY => 'site-key',
+                Config::PATH_API_KEY => 'existing-api-key',
+            ],
+            [],
+            null,
+            $settingsTester
+        );
 
         $validator->validate($this->createSaveConfig('1', $this->buildGroups([
             'credentials' => ['api_key' => '******'],
@@ -42,9 +45,6 @@ final class ConfigSaveValidatorTest extends TestCase
         ])));
     }
 
-    /**
-     * @dataProvider invalidAdvancedValueProvider
-     */
     #[DataProvider('invalidAdvancedValueProvider')]
     public function testInvalidAdvancedValueIsRejectedBeforeSave(string $field, string $expectedMessage): void
     {
@@ -69,9 +69,6 @@ final class ConfigSaveValidatorTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider unsupportedScopeProvider
-     */
     #[DataProvider('unsupportedScopeProvider')]
     public function testUnsupportedScopesAreRejected(?string $store, ?string $scope): void
     {
@@ -103,9 +100,6 @@ final class ConfigSaveValidatorTest extends TestCase
         ]), '3'));
     }
 
-    /**
-     * @dataProvider websiteOnlyStoreFieldProvider
-     */
     #[DataProvider('websiteOnlyStoreFieldProvider')]
     public function testStoreScopeRejectsWebsiteOnlyFields(string $group, string $field): void
     {
@@ -198,12 +192,19 @@ final class ConfigSaveValidatorTest extends TestCase
 
     public function testLockedCredentialsUseTheirEffectiveDeploymentValues(): void
     {
+        $settingsTester = $this->createMock(CurrentSettingsTester::class);
+        $settingsTester->expects(self::once())
+            ->method('test')
+            ->with('deployed-api-key', null)
+            ->willReturn(true);
         $validator = $this->createValidator(
             [
                 Config::PATH_SITE_KEY => 'deployed-site-key',
                 Config::PATH_API_KEY => 'deployed-api-key',
             ],
-            [Config::PATH_SITE_KEY => true, Config::PATH_API_KEY => true]
+            [Config::PATH_SITE_KEY => true, Config::PATH_API_KEY => true],
+            null,
+            $settingsTester
         );
 
         $validator->validate($this->createSaveConfig('1', $this->buildGroups([

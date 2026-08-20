@@ -20,32 +20,6 @@ use PrivateCaptcha\PrivateCaptcha\Model\Validation\SdkClientFactory;
 use PrivateCaptcha\PrivateCaptcha\Model\Validation\SdkVerifier;
 use Psr\Log\LoggerInterface;
 
-if (!class_exists(Client::class)) {
-    class_alias(SdkVerifierTestClient::class, Client::class);
-}
-
-if (!class_exists(PrivateCaptchaException::class)) {
-    class_alias(SdkVerifierTestException::class, PrivateCaptchaException::class);
-}
-
-if (!interface_exists(ScopeConfigInterface::class)) {
-    class_alias(SdkVerifierTestScopeConfigInterface::class, ScopeConfigInterface::class);
-    class_alias(SdkVerifierTestStoreManagerInterface::class, StoreManagerInterface::class);
-    class_alias(SdkVerifierTestStoreInterface::class, StoreInterface::class);
-    class_alias(SdkVerifierTestWebsiteInterface::class, WebsiteInterface::class);
-    class_alias(SdkVerifierTestScopeInterface::class, ScopeInterface::class);
-}
-
-if (!interface_exists(LoggerInterface::class)) {
-    class_alias(SdkVerifierTestLoggerInterface::class, LoggerInterface::class);
-}
-
-require_once dirname(__DIR__, 4) . '/Model/CustomDomain.php';
-require_once dirname(__DIR__, 4) . '/Model/Config.php';
-require_once dirname(__DIR__, 4) . '/Model/Validation/VerifierInterface.php';
-require_once dirname(__DIR__, 4) . '/Model/Validation/SdkClientFactory.php';
-require_once dirname(__DIR__, 4) . '/Model/Validation/SdkVerifier.php';
-
 final class SdkVerifierTest extends TestCase
 {
     private const STORE_ID = 3;
@@ -71,13 +45,10 @@ final class SdkVerifierTest extends TestCase
         self::assertSame([['api-key', 'verify.example.test']], $factory->calls);
     }
 
-    /**
-     * @dataProvider invalidSolutionProvider
-     */
     #[DataProvider('invalidSolutionProvider')]
     public function testInvalidSolutionsAreRejectedBeforeClientConstruction(string $solution): void
     {
-        $factory = new SdkVerifierTestFactory($this->createClient(fn (): object => $this->createOutput(true)));
+        $factory = new SdkVerifierTestFactory($this->createStub(Client::class));
         $verifier = new SdkVerifier($factory, $this->createConfig(), $this->createStub(LoggerInterface::class));
 
         self::assertFalse($verifier->isValid($solution, self::STORE_ID, self::FORM));
@@ -97,12 +68,11 @@ final class SdkVerifierTest extends TestCase
 
     /**
      * @param array<string, string> $values
-     * @dataProvider missingCredentialProvider
      */
     #[DataProvider('missingCredentialProvider')]
     public function testMissingCredentialsAreRejectedBeforeClientConstruction(array $values): void
     {
-        $factory = new SdkVerifierTestFactory($this->createClient(fn (): object => $this->createOutput(true)));
+        $factory = new SdkVerifierTestFactory($this->createStub(Client::class));
         $verifier = new SdkVerifier($factory, $this->createConfig($values), $this->createStub(LoggerInterface::class));
 
         self::assertFalse($verifier->isValid('solution', self::STORE_ID, self::FORM));
@@ -225,13 +195,6 @@ final class SdkVerifierTest extends TestCase
      */
     private function createClient(callable $verify): Client
     {
-        if ($this->usesTestSdk()) {
-            $client = new Client('test-api-key');
-            $client->verifyHandler = \Closure::fromCallable($verify);
-
-            return $client;
-        }
-
         $client = $this->createStub(Client::class);
         $client->method('verify')->willReturnCallback($verify);
 
@@ -243,11 +206,7 @@ final class SdkVerifierTest extends TestCase
         string $code = 'solution-invalid',
         ?string $requestId = null,
         ?int $attempt = null
-    ): object {
-        if ($this->usesTestSdk()) {
-            return new SdkVerifierTestOutput($isOk, $code, $requestId, $attempt);
-        }
-
+    ): VerifyOutput {
         $output = $this->createStub(VerifyOutput::class);
         $output->method('isOK')->willReturn($isOk);
         $output->method('__toString')->willReturn($code);
@@ -297,11 +256,6 @@ final class SdkVerifierTest extends TestCase
 
         return new Config($scopeConfig, $storeManager, new CustomDomain());
     }
-
-    private function usesTestSdk(): bool
-    {
-        return is_a(Client::class, SdkVerifierTestClient::class, true);
-    }
 }
 
 final class SdkVerifierTestFactory extends SdkClientFactory
@@ -322,114 +276,4 @@ final class SdkVerifierTestFactory extends SdkClientFactory
 
         return $this->client;
     }
-}
-
-final class SdkVerifierTestClient
-{
-    public const DEFAULT_FORM_FIELD = 'private-captcha-solution';
-    public const EU_DOMAIN = 'api.eu.privatecaptcha.com';
-
-    /**
-     * @var null|\Closure(string, int, int, ?string): object
-     */
-    public ?\Closure $verifyHandler = null;
-
-    public function __construct(
-        string $apiKey,
-        ?string $domain = null,
-        string $formField = self::DEFAULT_FORM_FIELD,
-        ?int $timeout = null
-    ) {
-    }
-
-    public function verify(string $solution, int $maxBackoffSeconds, int $attempts, ?string $sitekey): object
-    {
-        if ($this->verifyHandler === null) {
-            throw new \LogicException('No verification handler configured.');
-        }
-
-        return ($this->verifyHandler)($solution, $maxBackoffSeconds, $attempts, $sitekey);
-    }
-}
-
-final class SdkVerifierTestOutput
-{
-    public function __construct(
-        private readonly bool $isOk,
-        private readonly string $code,
-        private readonly ?string $requestId,
-        private readonly ?int $attempt
-    ) {
-    }
-
-    public function isOK(): bool
-    {
-        return $this->isOk;
-    }
-
-    public function __toString(): string
-    {
-        return $this->code;
-    }
-
-    public function getRequestId(): ?string
-    {
-        return $this->requestId;
-    }
-
-    public function getAttempt(): ?int
-    {
-        return $this->attempt;
-    }
-}
-
-class SdkVerifierTestException extends \Exception
-{
-}
-
-interface SdkVerifierTestScopeConfigInterface
-{
-    public function getValue(string $path, ?string $scopeType = null, ?string $scopeCode = null): mixed;
-
-    public function isSetFlag(string $path, ?string $scopeType = null, ?string $scopeCode = null): bool;
-}
-
-interface SdkVerifierTestStoreManagerInterface
-{
-    public function getStore(mixed $store = null): mixed;
-
-    public function getWebsite(mixed $website = null): mixed;
-}
-
-interface SdkVerifierTestStoreInterface
-{
-    public function getWebsiteId(): int;
-}
-
-interface SdkVerifierTestWebsiteInterface
-{
-    public function getCode(): string;
-}
-
-final class SdkVerifierTestScopeInterface
-{
-    public const SCOPE_WEBSITE = 'website';
-}
-
-interface SdkVerifierTestLoggerInterface
-{
-    /**
-     * @param array<string, mixed> $context
-     */
-    public function debug(string $message, array $context = []): void;
-
-    /**
-     * @param array<string, mixed> $context
-     */
-    public function warning(string $message, array $context = []): void;
-
-    /**
-     * @param array<string, mixed> $context
-     */
-    public function error(string $message, array $context = []): void;
 }

@@ -8,8 +8,6 @@ use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\ViewModel\WidgetConfig;
 
-require_once dirname(__DIR__, 3) . '/ViewModel/WidgetConfig.php';
-
 final class WidgetConfigTest extends TestCase
 {
     public function testTemplateEscapesUntrustedAttributesWithoutRenderingSecrets(): void

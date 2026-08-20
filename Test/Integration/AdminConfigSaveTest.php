@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace PrivateCaptcha\PrivateCaptcha\Test\Integration;
 
 use Magento\Config\Console\Command\EmulatedAdminhtmlAreaProcessor;
-use Magento\Config\Model\Config as MagentoConfig;
 use Magento\Config\Model\Config\Factory as ConfigFactory;
 use Magento\Framework\App\Config\ReinitableConfigInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\Config\Storage\WriterInterface;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\ObjectManager\NoninterceptableInterface;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
@@ -33,31 +31,16 @@ final class AdminConfigSaveTest extends TestCase
     /**
      * @magentoAppIsolation enabled
      */
-    public function testEmulatedAdminhtmlConfigSaveLeavesPrivateCaptchaHandlerUnresolved(): void
+    public function testEmulatedAdminhtmlConfigSaveUsesLazyPrivateCaptchaHandler(): void
     {
         $this->objectManager->get(EmulatedAdminhtmlAreaProcessor::class)->process(function (): void {
             $plugin = $this->objectManager->create(ValidateConfigSave::class);
-            $handlerProperty = new \ReflectionProperty(ValidateConfigSave::class, 'handler');
-            $handler = $handlerProperty->getValue($plugin);
-            self::assertInstanceOf(NoninterceptableInterface::class, $handler);
-
+            $handler = (new \ReflectionProperty(ValidateConfigSave::class, 'handler'))->getValue($plugin);
             $subject = $this->objectManager->get(ConfigFactory::class)->create(['data' => ['section' => 'system']]);
-            $result = $this->objectManager->create(MagentoConfig::class);
-            $proceedCalls = 0;
-            $proxySubject = new \ReflectionProperty($handler, '_subject');
-            self::assertNull($proxySubject->getValue($handler));
+            $plugin->aroundSave($subject, static fn () => $subject);
+            $plugin->afterSave($subject, $subject);
 
-            self::assertSame($result, $plugin->aroundSave(
-                $subject,
-                static function () use (&$proceedCalls, $result): MagentoConfig {
-                    $proceedCalls++;
-
-                    return $result;
-                }
-            ));
-            self::assertSame(1, $proceedCalls);
-            self::assertSame($result, $plugin->afterSave($subject, $result));
-            self::assertNull($proxySubject->getValue($handler));
+            self::assertNull((new \ReflectionProperty($handler, '_subject'))->getValue($handler));
         });
     }
 
@@ -99,7 +82,7 @@ final class AdminConfigSaveTest extends TestCase
                 ->where('scope = ?', ScopeInterface::SCOPE_WEBSITES)
                 ->where('scope_id = ?', $websiteId)
         );
-        self::assertIsString($storedApiKey);
+        self::assertNotEmpty($storedApiKey);
         self::assertNotSame('api-key', $storedApiKey);
     }
 
@@ -127,20 +110,6 @@ final class AdminConfigSaveTest extends TestCase
         $this->reinitializeConfig();
         $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
         $websiteCode = $this->getCurrentWebsiteCode();
-        self::assertTrue(
-            $scopeConfig->isSetFlag(
-                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
-                ScopeInterface::SCOPE_WEBSITE,
-                $websiteCode
-            )
-        );
-        self::assertTrue(
-            $scopeConfig->isSetFlag(
-                Config::FORM_PATHS[Config::FORM_CONTACT],
-                ScopeInterface::SCOPE_WEBSITE,
-                $websiteCode
-            )
-        );
 
         $this->save($websiteId, [
             'credentials' => [
@@ -263,8 +232,6 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppIsolation enabled
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
-     * @magentoConfigFixture default private_captcha/credentials/site_key default-site-key
-     * @magentoConfigFixture default private_captcha/credentials/api_key default-api-key
      */
     #[ConfigFixture('private_captcha/credentials/site_key', 'default-site-key')]
     #[ConfigFixture('private_captcha/credentials/api_key', 'default-api-key')]

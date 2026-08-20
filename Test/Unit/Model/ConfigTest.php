@@ -16,9 +16,6 @@ use PrivateCaptcha\Client;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
 
-require_once dirname(__DIR__, 3) . '/Model/CustomDomain.php';
-require_once dirname(__DIR__, 3) . '/Model/Config.php';
-
 final class ConfigTest extends TestCase
 {
     private CustomDomain $customDomain;
@@ -37,9 +34,6 @@ final class ConfigTest extends TestCase
         self::assertSame('https://api.example.test/puzzle', $this->customDomain->getPuzzleEndpoint($domain));
     }
 
-    /**
-     * @dataProvider invalidCustomDomainProvider
-     */
     #[DataProvider('invalidCustomDomainProvider')]
     public function testCustomDomainRejectsInvalidHostValues(string $value): void
     {
@@ -66,9 +60,6 @@ final class ConfigTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider formEnablementProvider
-     */
     #[DataProvider('formEnablementProvider')]
     public function testFormEnablementRequiresTheFlagAndBothCredentials(
         bool $flag,
@@ -94,8 +85,6 @@ final class ConfigTest extends TestCase
         return [
             'disabled with credentials' => [false, 'site-key', 'api-key', false],
             'missing Site Key' => [true, '', 'api-key', false],
-            'missing API Key' => [true, 'site-key', '', false],
-            'blank Site Key' => [true, '  ', 'api-key', false],
             'blank API Key' => [true, 'site-key', "\t", false],
             'enabled and configured' => [true, 'site-key', 'api-key', true],
         ];

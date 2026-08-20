@@ -12,10 +12,6 @@ use PrivateCaptcha\PrivateCaptcha\Model\Provider\AjaxSolutionProvider;
 use PrivateCaptcha\PrivateCaptcha\Model\Provider\DefaultSolutionProvider;
 use PrivateCaptcha\PrivateCaptcha\Model\Provider\SolutionProviderInterface;
 
-require_once dirname(__DIR__, 4) . '/Model/Provider/SolutionProviderInterface.php';
-require_once dirname(__DIR__, 4) . '/Model/Provider/DefaultSolutionProvider.php';
-require_once dirname(__DIR__, 4) . '/Model/Provider/AjaxSolutionProvider.php';
-
 final class SolutionProviderTest extends TestCase
 {
     public function testDefaultProviderReturnsTheExactNonEmptyPostString(): void
@@ -71,10 +67,6 @@ final class SolutionProviderTest extends TestCase
         self::assertFalse($query->offsetExists(SolutionProviderInterface::SOLUTION_FIELD));
     }
 
-    /**
-     * @param mixed $value
-     * @dataProvider invalidSolutionProvider
-     */
     #[DataProvider('invalidSolutionProvider')]
     public function testDefaultProviderRejectsInvalidPostValues(mixed $value): void
     {
@@ -159,10 +151,6 @@ final class SolutionProviderTest extends TestCase
         self::assertFalse($query->offsetExists(SolutionProviderInterface::SOLUTION_FIELD));
     }
 
-    /**
-     * @param string $content
-     * @dataProvider invalidAjaxContentProvider
-     */
     #[DataProvider('invalidAjaxContentProvider')]
     public function testAjaxProviderRejectsInvalidJsonWithoutFallingBackToParameters(string $content): void
     {

@@ -15,10 +15,6 @@ use PrivateCaptcha\PrivateCaptcha\Model\Config as PrivateCaptchaConfig;
 use PrivateCaptcha\PrivateCaptcha\Model\Config\Coexistence;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
 
-require_once dirname(__DIR__, 4) . '/Model/CustomDomain.php';
-require_once dirname(__DIR__, 4) . '/Model/Config.php';
-require_once dirname(__DIR__, 4) . '/Model/Config/Coexistence.php';
-
 final class CoexistenceTest extends TestCase
 {
     public function testFindsMappedNativeCaptchaAndRecaptchaOverlapsWithoutReturningKeys(): void
@@ -65,9 +61,6 @@ final class CoexistenceTest extends TestCase
         self::assertSame([], $coexistence->getOverlaps('website-b'));
     }
 
-    /**
-     * @dataProvider requiredRecaptchaModuleProvider
-     */
     #[DataProvider('requiredRecaptchaModuleProvider')]
     public function testDoesNotReportRecaptchaWhenARequiredModuleIsDisabled(string $module): void
     {

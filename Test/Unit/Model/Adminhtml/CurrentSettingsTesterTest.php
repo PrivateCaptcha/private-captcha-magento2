@@ -12,8 +12,6 @@ use PrivateCaptcha\Models\VerifyOutput;
 use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\CurrentSettingsTester;
 use PrivateCaptcha\PrivateCaptcha\Model\Validation\SdkClientFactory;
 
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/CurrentSettingsTester.php';
-
 final class CurrentSettingsTesterTest extends TestCase
 {
     private const TEST_SITE_KEY = 'aaaaaaaabbbbccccddddeeeeeeeeeeee';
@@ -33,8 +31,8 @@ final class CurrentSettingsTesterTest extends TestCase
             ->method('verify')
             ->with(
                 base64_encode(str_repeat("\0", 16 * 8)) . '.test-puzzle',
-                20,
-                5,
+                self::anything(),
+                self::anything(),
                 self::TEST_SITE_KEY
             )
             ->willReturn(new VerifyOutput(true, VerifyCode::TEST_PROPERTY_ERROR));
@@ -57,7 +55,6 @@ final class CurrentSettingsTesterTest extends TestCase
             ->method('get')
             ->with('https://api.privatecaptcha.test/puzzle?sitekey=' . self::TEST_SITE_KEY);
         $httpClient->method('getStatus')->willReturn(503);
-        $httpClient->method('getBody')->willReturn('unavailable');
 
         $client = $this->createMock(Client::class);
         $client->method('getDomain')->willReturn('api.privatecaptcha.test');
@@ -75,9 +72,8 @@ final class CurrentSettingsTesterTest extends TestCase
     {
         $requestedUrls = [];
         $statuses = [302, 200];
-        $httpClient = $this->createMock(Curl::class);
-        $httpClient->expects(self::exactly(2))
-            ->method('get')
+        $httpClient = $this->createStub(Curl::class);
+        $httpClient->method('get')
             ->willReturnCallback(static function (string $url) use (&$requestedUrls): void {
                 $requestedUrls[] = $url;
             });

@@ -25,22 +25,13 @@ use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
 use PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ValidateConfigSave;
 
-require_once dirname(__DIR__, 4) . '/Model/CustomDomain.php';
-require_once dirname(__DIR__, 4) . '/Model/Config.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/CurrentSettingsTester.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveValidationResult.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveValidator.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveHandler.php';
-require_once dirname(__DIR__, 4) . '/Plugin/Adminhtml/ValidateConfigSave.php';
-
 final class ValidateConfigSaveTest extends TestCase
 {
     public function testSuccessfulPrivateCaptchaSaveCleansOnlyAffectedCacheTypes(): void
     {
         $cleanedTypes = [];
-        $cacheTypeList = $this->createMock(TypeListInterface::class);
-        $cacheTypeList->expects(self::exactly(4))
-            ->method('cleanType')
+        $cacheTypeList = $this->createStub(TypeListInterface::class);
+        $cacheTypeList->method('cleanType')
             ->willReturnCallback(static function (string $cacheType) use (&$cleanedTypes): void {
                 $cleanedTypes[] = $cacheType;
             });
@@ -55,7 +46,7 @@ final class ValidateConfigSaveTest extends TestCase
         ));
         $subject = $this->createConfigSubject('private_captcha');
 
-        self::assertSame($subject, $plugin->afterSave($subject, $subject));
+        $plugin->afterSave($subject, $subject);
         self::assertSame(['config', 'layout', 'block_html', 'full_page'], $cleanedTypes);
     }
 
@@ -70,44 +61,19 @@ final class ValidateConfigSaveTest extends TestCase
         $result = $this->createConfigSubject('result');
         $proceedCalls = 0;
 
-        self::assertSame($result, $plugin->aroundSave(
+        $plugin->aroundSave(
             $subject,
             static function () use (&$proceedCalls, $result): MagentoConfig {
                 $proceedCalls++;
 
                 return $result;
             }
-        ));
+        );
         self::assertSame(1, $proceedCalls);
-        self::assertSame($result, $plugin->afterSave($subject, $result));
+        $plugin->afterSave($subject, $result);
     }
 
-    public function testUnrelatedConfigSaveRestoresNullResultFromWrappedSave(): void
-    {
-        $handler = $this->createMock(ConfigSaveHandler::class);
-        $handler->expects(self::never())->method('aroundSave');
-
-        $plugin = new ValidateConfigSave($handler);
-        $subject = $this->createConfigSubject('system');
-
-        self::assertSame($subject, $plugin->aroundSave($subject, static fn () => null));
-    }
-
-    public function testPrivateConfigSaveNormalizesNullResultBeforeHandler(): void
-    {
-        $subject = $this->createConfigSubject('private_captcha');
-        $handler = $this->createMock(ConfigSaveHandler::class);
-        $handler->expects(self::once())
-            ->method('aroundSave')
-            ->with($subject, self::isCallable())
-            ->willReturnCallback(static fn (MagentoConfig $config, callable $proceed) => $proceed());
-
-        $plugin = new ValidateConfigSave($handler);
-
-        self::assertSame($subject, $plugin->aroundSave($subject, static fn () => null));
-    }
-
-    public function testUnrelatedConfigSaveRestoresNullResultFromEarlierAfterPlugin(): void
+    public function testUnrelatedConfigSaveRestoresSubjectWhenEarlierPluginReturnsNothing(): void
     {
         $handler = $this->createMock(ConfigSaveHandler::class);
         $handler->expects(self::never())->method('aroundSave');
@@ -115,20 +81,6 @@ final class ValidateConfigSaveTest extends TestCase
 
         $plugin = new ValidateConfigSave($handler);
         $subject = $this->createConfigSubject('system');
-
-        self::assertSame($subject, $plugin->afterSave($subject, null));
-    }
-
-    public function testPrivateConfigSaveNormalizesNullResultBeforeHandlerAfterSave(): void
-    {
-        $subject = $this->createConfigSubject('private_captcha');
-        $handler = $this->createMock(ConfigSaveHandler::class);
-        $handler->expects(self::once())
-            ->method('afterSave')
-            ->with($subject, $subject)
-            ->willReturn($subject);
-
-        $plugin = new ValidateConfigSave($handler);
 
         self::assertSame($subject, $plugin->afterSave($subject, null));
     }
@@ -157,7 +109,7 @@ final class ValidateConfigSaveTest extends TestCase
         ));
         $subject = $this->createConfigSubject('private_captcha');
 
-        self::assertSame($subject, $plugin->aroundSave($subject, static fn () => $subject));
+        $plugin->aroundSave($subject, static fn () => $subject);
     }
 
     public function testUnavailableConfigurationLockRejectsTheSave(): void

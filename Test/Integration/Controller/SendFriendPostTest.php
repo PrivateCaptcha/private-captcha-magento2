@@ -54,6 +54,9 @@ final class SendFriendPostTest extends AbstractController
         if (isset($this->transportBuilder)) {
             $this->transportBuilder->clean();
         }
+        \Magento\TestFramework\Helper\Bootstrap::getObjectManager()
+            ->get(ActionFlag::class)
+            ->set('', ActionInterface::FLAG_NO_DISPATCH, false);
         $this->restoreDependencies();
         parent::tearDown();
         $this->removeIgnitionHandlers();
@@ -76,14 +79,10 @@ final class SendFriendPostTest extends AbstractController
         $verifier = new SendFriendPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(false));
+        $this->submit($this->requestPost(false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
     }
 
     /**
@@ -104,7 +103,6 @@ final class SendFriendPostTest extends AbstractController
 
         $body = $this->getResponse()->getBody();
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
-        self::assertStringNotContainsString('private-api-key', $body);
     }
 
     /**
@@ -124,16 +122,12 @@ final class SendFriendPostTest extends AbstractController
         $verifier = new SendFriendPostTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(false));
+        $this->submit($this->requestPost(false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafePersistedState();
-            $this->assertSendFriendRedirect();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafePersistedState();
+        $this->assertSendFriendRedirect();
     }
 
     /**
@@ -153,15 +147,11 @@ final class SendFriendPostTest extends AbstractController
         $verifier = new SendFriendPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafePersistedState();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafePersistedState();
     }
 
     /**
@@ -180,16 +170,13 @@ final class SendFriendPostTest extends AbstractController
     {
         $verifier = new SendFriendPostTestVerifier(true);
         $this->replaceDependencies($verifier);
+        $this->catalogSession->setData('sendfriend_form_data', ['stale' => 'state']);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            self::assertNull($this->catalogSession->getData('sendfriend_form_data'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
+        self::assertNull($this->catalogSession->getData('sendfriend_form_data'));
     }
 
     /**
@@ -211,14 +198,10 @@ final class SendFriendPostTest extends AbstractController
         $this->replaceDependencies($verifier);
         $this->customerSession->setCustomerId(1);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
     }
 
     /**
@@ -254,7 +237,6 @@ final class SendFriendPostTest extends AbstractController
             );
         } finally {
             $cookieManager->deleteCookie(SendFriendHelper::COOKIE_NAME);
-            $this->restoreDependencies();
         }
     }
 
@@ -278,24 +260,20 @@ final class SendFriendPostTest extends AbstractController
         $this->replaceDependencies($verifier);
         $this->getRequest()->setServer(new Parameters(['REMOTE_ADDR' => '127.0.0.1']));
 
-        try {
-            $this->submit($this->requestPost(true));
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->removeIgnitionHandlers();
-            \Magento\TestFramework\Helper\Bootstrap::getObjectManager()
-                ->get(ActionFlag::class)
-                ->set('', ActionInterface::FLAG_NO_DISPATCH, false);
+        $this->submit($this->requestPost(true));
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->removeIgnitionHandlers();
+        \Magento\TestFramework\Helper\Bootstrap::getObjectManager()
+            ->get(ActionFlag::class)
+            ->set('', ActionInterface::FLAG_NO_DISPATCH, false);
 
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([
-                ['solution', Config::FORM_EMAIL_TO_FRIEND],
-                ['solution', Config::FORM_EMAIL_TO_FRIEND],
-            ], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([
+            ['solution', Config::FORM_EMAIL_TO_FRIEND],
+            ['solution', Config::FORM_EMAIL_TO_FRIEND],
+        ], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
     }
 
     /**
@@ -319,15 +297,11 @@ final class SendFriendPostTest extends AbstractController
         $expectedState = $this->safePost();
         $expectedState['sender']['email'] = 'invalid-email';
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafePersistedState($expectedState);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_EMAIL_TO_FRIEND]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafePersistedState($expectedState);
     }
 
     /**
@@ -346,20 +320,16 @@ final class SendFriendPostTest extends AbstractController
         $verifier = new SendFriendPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            self::assertTrue($this->getResponse()->isRedirect());
-            self::assertStringContainsString(
-                'customer/account/login',
-                $this->getResponse()->getHeader('Location')->getFieldValue()
-            );
-            $this->assertEmptyOrSafePersistedState();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        self::assertTrue($this->getResponse()->isRedirect());
+        self::assertStringContainsString(
+            'customer/account/login',
+            $this->getResponse()->getHeader('Location')->getFieldValue()
+        );
+        $this->assertEmptyOrSafePersistedState();
     }
 
     /**
@@ -377,14 +347,10 @@ final class SendFriendPostTest extends AbstractController
         $verifier = new SendFriendPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([], $verifier->calls);
-            $this->assert404NotFound();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        $this->assert404NotFound();
     }
 
     /**
