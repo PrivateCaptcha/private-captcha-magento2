@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PrivateCaptcha\PrivateCaptcha\Test\Integration;
 
+use Magento\Config\Console\Command\EmulatedAdminhtmlAreaProcessor;
 use Magento\Config\Model\Config as MagentoConfig;
 use Magento\Config\Model\Config\Factory as ConfigFactory;
 use Magento\Framework\App\Config\ReinitableConfigInterface;
@@ -31,32 +32,33 @@ final class AdminConfigSaveTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
-     * @magentoAppArea adminhtml
      */
-    public function testUnrelatedConfigSaveLeavesPrivateCaptchaHandlerUnresolved(): void
+    public function testEmulatedAdminhtmlConfigSaveLeavesPrivateCaptchaHandlerUnresolved(): void
     {
-        $plugin = $this->objectManager->create(ValidateConfigSave::class);
-        $handlerProperty = new \ReflectionProperty(ValidateConfigSave::class, 'handler');
-        $handler = $handlerProperty->getValue($plugin);
-        self::assertInstanceOf(NoninterceptableInterface::class, $handler);
+        $this->objectManager->get(EmulatedAdminhtmlAreaProcessor::class)->process(function (): void {
+            $plugin = $this->objectManager->create(ValidateConfigSave::class);
+            $handlerProperty = new \ReflectionProperty(ValidateConfigSave::class, 'handler');
+            $handler = $handlerProperty->getValue($plugin);
+            self::assertInstanceOf(NoninterceptableInterface::class, $handler);
 
-        $subject = $this->objectManager->get(ConfigFactory::class)->create(['data' => ['section' => 'system']]);
-        $result = $this->objectManager->create(MagentoConfig::class);
-        $proceedCalls = 0;
-        $proxySubject = new \ReflectionProperty($handler, '_subject');
-        self::assertNull($proxySubject->getValue($handler));
+            $subject = $this->objectManager->get(ConfigFactory::class)->create(['data' => ['section' => 'system']]);
+            $result = $this->objectManager->create(MagentoConfig::class);
+            $proceedCalls = 0;
+            $proxySubject = new \ReflectionProperty($handler, '_subject');
+            self::assertNull($proxySubject->getValue($handler));
 
-        self::assertSame($result, $plugin->aroundSave(
-            $subject,
-            static function () use (&$proceedCalls, $result): MagentoConfig {
-                $proceedCalls++;
+            self::assertSame($result, $plugin->aroundSave(
+                $subject,
+                static function () use (&$proceedCalls, $result): MagentoConfig {
+                    $proceedCalls++;
 
-                return $result;
-            }
-        ));
-        self::assertSame(1, $proceedCalls);
-        self::assertSame($result, $plugin->afterSave($subject, $result));
-        self::assertNull($proxySubject->getValue($handler));
+                    return $result;
+                }
+            ));
+            self::assertSame(1, $proceedCalls);
+            self::assertSame($result, $plugin->afterSave($subject, $result));
+            self::assertNull($proxySubject->getValue($handler));
+        });
     }
 
     /**

@@ -17,14 +17,20 @@ class ValidateConfigSave
     public function aroundSave(MagentoConfig $subject, callable $proceed): MagentoConfig
     {
         if ($subject->getSection() !== 'private_captcha') {
-            return $proceed();
+            return $proceed() ?? $subject;
         }
 
-        return $this->handler->aroundSave($subject, $proceed);
+        return $this->handler->aroundSave(
+            $subject,
+            static fn (): MagentoConfig => $proceed() ?? $subject
+        );
     }
 
-    public function afterSave(MagentoConfig $subject, MagentoConfig $result): MagentoConfig
+    public function afterSave(MagentoConfig $subject, ?MagentoConfig $result): MagentoConfig
     {
+        // Preserve Magento's fluent result when another plugin returns no value.
+        $result ??= $subject;
+
         if ($subject->getSection() !== 'private_captcha') {
             return $result;
         }

@@ -5,11 +5,6 @@
         <plugin name="private_captcha_validate_config_save"
                 type="PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ValidateConfigSave"/>
     </type>
-    <type name="PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ValidateConfigSave">
-        <arguments>
-            <argument name="handler" xsi:type="object">PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveHandler\Proxy</argument>
-        </arguments>
-    </type>
     <type name="Magento\Config\Controller\Adminhtml\System\Config\Index">
         <plugin name="private_captcha_resolve_config_section"
                 type="PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ResolveConfigSection"
