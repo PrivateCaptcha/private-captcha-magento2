@@ -4,18 +4,21 @@ declare(strict_types=1);
 
 namespace PrivateCaptcha\PrivateCaptcha\Test\Integration;
 
+use Magento\Config\Model\Config as MagentoConfig;
 use Magento\Config\Model\Config\Factory as ConfigFactory;
 use Magento\Framework\App\Config\ReinitableConfigInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\Config\Storage\WriterInterface;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\ObjectManager\NoninterceptableInterface;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\TestFramework\Fixture\Config as ConfigFixture;
 use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
+use PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ValidateConfigSave;
 
 final class AdminConfigSaveTest extends TestCase
 {
@@ -24,6 +27,36 @@ final class AdminConfigSaveTest extends TestCase
     protected function setUp(): void
     {
         $this->objectManager = \Magento\TestFramework\Helper\Bootstrap::getObjectManager();
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     * @magentoAppArea adminhtml
+     */
+    public function testUnrelatedConfigSaveLeavesPrivateCaptchaHandlerUnresolved(): void
+    {
+        $plugin = $this->objectManager->create(ValidateConfigSave::class);
+        $handlerProperty = new \ReflectionProperty(ValidateConfigSave::class, 'handler');
+        $handler = $handlerProperty->getValue($plugin);
+        self::assertInstanceOf(NoninterceptableInterface::class, $handler);
+
+        $subject = $this->objectManager->get(ConfigFactory::class)->create(['data' => ['section' => 'system']]);
+        $result = $this->objectManager->create(MagentoConfig::class);
+        $proceedCalls = 0;
+        $proxySubject = new \ReflectionProperty($handler, '_subject');
+        self::assertNull($proxySubject->getValue($handler));
+
+        self::assertSame($result, $plugin->aroundSave(
+            $subject,
+            static function () use (&$proceedCalls, $result): MagentoConfig {
+                $proceedCalls++;
+
+                return $result;
+            }
+        ));
+        self::assertSame(1, $proceedCalls);
+        self::assertSame($result, $plugin->afterSave($subject, $result));
+        self::assertNull($proxySubject->getValue($handler));
     }
 
     /**
