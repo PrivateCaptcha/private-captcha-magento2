@@ -62,6 +62,7 @@ final class ConfigSaveValidatorTest extends TestCase
     public static function invalidAdvancedValueProvider(): array
     {
         return [
+            'theme' => ['theme', 'Theme'],
             'language' => ['language', 'Language'],
             'start mode' => ['start_mode', 'Start Mode'],
             'EU isolation' => ['eu_isolation', 'EU Isolation'],
@@ -133,16 +134,19 @@ final class ConfigSaveValidatorTest extends TestCase
         ];
     }
 
-    public function testStoreScopeInheritanceUsesWebsiteLanguage(): void
+    public function testStoreScopeInheritanceUsesWebsitePresentationSettings(): void
     {
         $this->expectNotToPerformAssertions();
         $validator = $this->createValidator([
+            ScopeInterface::SCOPE_WEBSITES . ':' . Config::PATH_THEME => 'dark',
             ScopeInterface::SCOPE_WEBSITES . ':' . Config::PATH_LANGUAGE => 'fr',
+            ScopeInterface::SCOPE_STORES . ':' . Config::PATH_THEME => 'invalid-store-value',
             ScopeInterface::SCOPE_STORES . ':' . Config::PATH_LANGUAGE => 'invalid-store-value',
         ]);
 
         $validator->validate($this->createSaveConfig(null, $this->buildGroups([
             'advanced' => [
+                'theme' => ['value' => 'ignored', 'inherit' => '1'],
                 'language' => ['value' => 'ignored', 'inherit' => '1'],
             ],
         ]), '3'));
@@ -355,6 +359,7 @@ final class ConfigSaveValidatorTest extends TestCase
 
                 return $values[$path] ?? match ($path) {
                     Config::PATH_EU_ISOLATION, Config::PATH_DEBUG_MODE => '0',
+                    Config::PATH_THEME => 'light',
                     Config::PATH_LANGUAGE, Config::PATH_START_MODE => 'auto',
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_REGISTRATION],

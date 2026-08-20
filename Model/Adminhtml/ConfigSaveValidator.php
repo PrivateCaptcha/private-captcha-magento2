@@ -29,6 +29,7 @@ class ConfigSaveValidator
         Config::PATH_EU_ISOLATION => ['advanced', 'eu_isolation'],
         Config::PATH_DEBUG_MODE => ['advanced', 'debug_mode'],
         Config::PATH_CUSTOM_STYLES => ['advanced', 'custom_styles'],
+        Config::PATH_THEME => ['advanced', 'theme'],
         Config::PATH_LANGUAGE => ['advanced', 'language'],
         Config::PATH_START_MODE => ['advanced', 'start_mode'],
         Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN] => ['protected_forms', 'customer_login'],
@@ -49,6 +50,7 @@ class ConfigSaveValidator
         Config::PATH_EU_ISOLATION => '0',
         Config::PATH_DEBUG_MODE => '0',
         Config::PATH_CUSTOM_STYLES => '',
+        Config::PATH_THEME => 'light',
         Config::PATH_LANGUAGE => 'auto',
         Config::PATH_START_MODE => 'auto',
         Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN] => '0',
@@ -177,15 +179,20 @@ class ConfigSaveValidator
     private function validateStoreValues(array $groups, StoreInterface $store): void
     {
         foreach (self::FIELD_PATHS as $path => $_field) {
-            if (in_array($path, [Config::PATH_CUSTOM_STYLES, Config::PATH_LANGUAGE], true)) {
+            if (in_array($path, [Config::PATH_CUSTOM_STYLES, Config::PATH_THEME, Config::PATH_LANGUAGE], true)) {
                 continue;
             }
 
             if ($this->getPostedFieldData($path, $groups) !== null) {
                 throw new LocalizedException(
-                    __('Private Captcha Store View scope supports only Custom Styles and Language.')
+                    __('Private Captcha Store View scope supports only Theme, Custom Styles, and Language.')
                 );
             }
+        }
+
+        $theme = $this->getProjectedStoreValue(Config::PATH_THEME, $groups, $store);
+        if (!in_array($theme, Config::THEMES, true)) {
+            throw new LocalizedException(__('Private Captcha Theme is invalid.'));
         }
 
         $language = $this->getProjectedStoreValue(Config::PATH_LANGUAGE, $groups, $store);
@@ -249,6 +256,10 @@ class ConfigSaveValidator
             $customDomain = $this->customDomain->normalize($values[Config::PATH_CUSTOM_DOMAIN]);
         } catch (InvalidArgumentException) {
             throw new LocalizedException(__('Private Captcha Custom Domain must be a valid hostname.'));
+        }
+
+        if (!in_array($values[Config::PATH_THEME], Config::THEMES, true)) {
+            throw new LocalizedException(__('Private Captcha Theme is invalid.'));
         }
 
         if (!in_array($values[Config::PATH_LANGUAGE], Config::LANGUAGES, true)) {

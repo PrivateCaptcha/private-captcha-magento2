@@ -213,6 +213,7 @@ final class ValidateConfigSaveTest extends TestCase
             static function (string $path): string {
                 return match ($path) {
                     Config::PATH_EU_ISOLATION, Config::PATH_DEBUG_MODE => '0',
+                    Config::PATH_THEME => 'light',
                     Config::PATH_LANGUAGE, Config::PATH_START_MODE => 'auto',
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_REGISTRATION],

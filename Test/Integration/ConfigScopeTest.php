@@ -22,9 +22,11 @@ final class ConfigScopeTest extends TestCase
      * @magentoConfigFixture test_website private_captcha/credentials/site_key public-site-key
      * @magentoConfigFixture test_website private_captcha/credentials/api_key private-api-key
      * @magentoConfigFixture fixture_second_store_store private_captcha/protected_forms/contact_form 1
+     * @magentoConfigFixture fixture_second_store_store private_captcha/advanced/theme dark
      * @magentoConfigFixture fixture_second_store_store private_captcha/advanced/language de
      * @magentoConfigFixture fixture_second_store_store private_captcha/advanced/custom_styles second-store-styles
      * @magentoConfigFixture fixture_third_store_store private_captcha/advanced/language fr
+     * @magentoConfigFixture fixture_third_store_store private_captcha/advanced/theme light
      * @magentoConfigFixture fixture_third_store_store private_captcha/advanced/custom_styles third-store-styles
      */
     public function testWebsiteScopedValuesRemainIsolatedFromStoreAndOtherWebsiteOverrides(): void
@@ -38,12 +40,20 @@ final class ConfigScopeTest extends TestCase
             $config->isFormEnabled(Config::FORM_CONTACT, (int) $storeManager->getStore('fixture_second_store')->getId())
         );
         self::assertSame(
+            'dark',
+            $config->getTheme((int) $storeManager->getStore('fixture_second_store')->getId())
+        );
+        self::assertSame(
             'de',
             $config->getLanguage((int) $storeManager->getStore('fixture_second_store')->getId())
         );
         self::assertSame(
             'second-store-styles',
             $config->getCustomStyles((int) $storeManager->getStore('fixture_second_store')->getId())
+        );
+        self::assertSame(
+            'light',
+            $config->getTheme((int) $storeManager->getStore('fixture_third_store')->getId())
         );
         self::assertSame(
             'fr',

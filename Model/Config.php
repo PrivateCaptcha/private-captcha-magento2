@@ -30,6 +30,7 @@ class Config
     public const PATH_CUSTOM_DOMAIN = 'private_captcha/advanced/custom_domain';
     public const PATH_DEBUG_MODE = 'private_captcha/advanced/debug_mode';
     public const PATH_CUSTOM_STYLES = 'private_captcha/advanced/custom_styles';
+    public const PATH_THEME = 'private_captcha/advanced/theme';
     public const PATH_LANGUAGE = 'private_captcha/advanced/language';
     public const PATH_START_MODE = 'private_captcha/advanced/start_mode';
 
@@ -44,6 +45,7 @@ class Config
         self::FORM_ORDERS_RETURNS => 'private_captcha/protected_forms/orders_returns',
     ];
 
+    public const THEMES = ['light', 'dark'];
     public const LANGUAGES = ['auto', 'en', 'de', 'es', 'fr', 'it', 'nl', 'sv', 'no', 'pl', 'fi', 'et', 'uk', 'tr'];
     public const START_MODES = ['auto', 'click'];
 
@@ -146,6 +148,13 @@ class Config
         $styles = $this->getStoreValue(self::PATH_CUSTOM_STYLES, $storeId);
 
         return trim($styles) === '' ? self::DEFAULT_CUSTOM_STYLES : $styles;
+    }
+
+    public function getTheme(?int $storeId = null): string
+    {
+        $theme = $this->getStoreValue(self::PATH_THEME, $storeId);
+
+        return in_array($theme, self::THEMES, true) ? $theme : 'light';
     }
 
     public function getLanguage(?int $storeId = null): string

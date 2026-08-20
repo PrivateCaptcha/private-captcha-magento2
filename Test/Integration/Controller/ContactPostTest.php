@@ -47,6 +47,7 @@ final class ContactPostTest extends AbstractController
      * @magentoConfigFixture base_website private_captcha/protected_forms/contact_form 1
      * @magentoConfigFixture base_website private_captcha/credentials/site_key public-site-key
      * @magentoConfigFixture base_website private_captcha/credentials/api_key private-api-key
+     * @magentoConfigFixture current_store private_captcha/advanced/theme dark
      * @magentoConfigFixture current_store private_captcha/advanced/language de
      * @magentoConfigFixture current_store private_captcha/advanced/custom_styles store-view-styles
      */
@@ -59,6 +60,7 @@ final class ContactPostTest extends AbstractController
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
         self::assertStringContainsString('data-sitekey="public-site-key"', $body);
         self::assertStringContainsString('data-solution-field="private-captcha-solution"', $body);
+        self::assertStringContainsString('data-theme="dark"', $body);
         self::assertStringContainsString('data-lang="de"', $body);
         self::assertStringContainsString('data-styles="store-view-styles"', $body);
         self::assertStringNotContainsString('private-api-key', $body);

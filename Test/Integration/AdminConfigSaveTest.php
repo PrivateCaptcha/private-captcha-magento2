@@ -308,12 +308,13 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
      */
-    public function testStoreScopedLanguageAndCustomStylesSaveTogether(): void
+    public function testStoreScopedPresentationSettingsSaveTogether(): void
     {
         $store = $this->objectManager->get(StoreManagerInterface::class)->getStore();
         $this->save($this->getCurrentWebsiteId(), [
             'advanced' => [
                 'fields' => [
+                    'theme' => ['value' => 'light'],
                     'language' => ['value' => 'en'],
                     'custom_styles' => ['value' => 'website-styles'],
                 ],
@@ -324,6 +325,7 @@ final class AdminConfigSaveTest extends TestCase
         $this->save(null, [
             'advanced' => [
                 'fields' => [
+                    'theme' => ['value' => 'dark'],
                     'language' => ['value' => 'de'],
                     'custom_styles' => ['value' => '--private-captcha-accent: teal;'],
                 ],
@@ -333,12 +335,14 @@ final class AdminConfigSaveTest extends TestCase
         $this->reinitializeConfig();
         $config = $this->objectManager->get(Config::class);
 
+        self::assertSame('dark', $config->getTheme((int) $store->getId()));
         self::assertSame('de', $config->getLanguage((int) $store->getId()));
         self::assertSame('--private-captcha-accent: teal;', $config->getCustomStyles((int) $store->getId()));
 
         $this->save(null, [
             'advanced' => [
                 'fields' => [
+                    'theme' => ['value' => 'ignored', 'inherit' => '1'],
                     'language' => ['value' => 'ignored', 'inherit' => '1'],
                     'custom_styles' => ['value' => 'ignored', 'inherit' => '1'],
                 ],
@@ -346,6 +350,7 @@ final class AdminConfigSaveTest extends TestCase
         ], (int) $store->getId());
 
         $this->reinitializeConfig();
+        self::assertSame('light', $config->getTheme((int) $store->getId()));
         self::assertSame('en', $config->getLanguage((int) $store->getId()));
         self::assertSame('website-styles', $config->getCustomStyles((int) $store->getId()));
     }

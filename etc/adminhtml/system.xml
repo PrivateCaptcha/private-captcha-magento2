@@ -86,6 +86,11 @@
                     <comment>Custom CSS styles for the captcha widget. Leave empty to use default styles.</comment>
                     <hint>font-size: inherit;</hint>
                 </field>
+                <field id="theme" translate="label comment" type="select" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Theme</label>
+                    <comment>Theme for the captcha widget interface.</comment>
+                    <source_model>PrivateCaptcha\PrivateCaptcha\Model\Config\Source\Theme</source_model>
+                </field>
                 <field id="language" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Language</label>
                     <comment>Language for the captcha widget interface.</comment>
