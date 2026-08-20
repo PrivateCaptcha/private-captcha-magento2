@@ -38,7 +38,7 @@
 
 ## Requirements
 
-- Magento Open Source or Adobe Commerce 2.4.6 (PHP 8.1/8.2), 2.4.7 (PHP 8.2/8.3), or 2.4.8 (PHP 8.3/8.4)
+- Magento Open Source or Adobe Commerce 2.4.6 (PHP 8.1/8.2), 2.4.7 (PHP 8.2/8.3), 2.4.8 (PHP 8.3/8.4), or 2.4.9 (PHP 8.5)
 - [Private Captcha account](https://portal.privatecaptcha.com/signup)
 
 ## License
