@@ -7,6 +7,7 @@
 - **Form Protection**: Most standard StoreFront forms (see [below](#supported-forms))
 - **Flexible Configuration**: Theme, language, start mode, and custom styling options per Website and Store
 - **EU Compliance**: Support for EU-only endpoints and custom domains
+- **Localization**: Supports English, German and Frech admin UI settings (captcha widget itself supports many more languages)
 
 ## Installation
 
