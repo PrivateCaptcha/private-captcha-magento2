@@ -38,8 +38,8 @@ class CoexistenceWarning extends Field
             $items .= '<li>' . $this->escapeHtml((string) __(
                 'Website "%1": Private Captcha and %2 are enabled for %3.',
                 $warning['website'],
-                $warning['engine'],
-                $warning['form']
+                (string) __($warning['engine']),
+                (string) __($warning['form'])
             )) . '</li>';
         }
 
