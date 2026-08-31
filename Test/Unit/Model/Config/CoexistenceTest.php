@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config as PrivateCaptchaConfig;
 use PrivateCaptcha\PrivateCaptcha\Model\Config\Coexistence;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
+use Psr\Log\LoggerInterface;
 
 final class CoexistenceTest extends TestCase
 {
@@ -207,7 +208,8 @@ final class CoexistenceTest extends TestCase
         $privateCaptchaConfig = new PrivateCaptchaConfig(
             $scopeConfig,
             $this->createStub(StoreManagerInterface::class),
-            new CustomDomain()
+            new CustomDomain(),
+            $this->createStub(LoggerInterface::class)
         );
 
         return new Coexistence($scopeConfig, $moduleManager, $authorization, $privateCaptchaConfig);
