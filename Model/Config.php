@@ -109,7 +109,15 @@ class Config
 
     public function getCustomDomain(?int $storeId = null): string
     {
-        return $this->customDomain->normalize($this->getValue(self::PATH_CUSTOM_DOMAIN, $storeId));
+        try {
+            return $this->customDomain->normalize($this->getValue(self::PATH_CUSTOM_DOMAIN, $storeId));
+        } catch (InvalidArgumentException $e) {
+            $this->logger->warning('PrivateCaptcha: Invalid custom domain configured, using default endpoints', [
+                'custom_domain' => $this->getValue(self::PATH_CUSTOM_DOMAIN, $storeId),
+                'error' => $e->getMessage(),
+            ]);
+            return ''; // Return empty string to use default endpoints
+        }
     }
 
     public function getScriptUrl(?int $storeId = null): string
