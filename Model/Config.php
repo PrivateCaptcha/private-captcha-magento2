@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace PrivateCaptcha\PrivateCaptcha\Model;
 
+use InvalidArgumentException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PrivateCaptcha\Client;
+use Psr\Log\LoggerInterface;
 
 class Config
 {
@@ -52,7 +54,8 @@ class Config
     public function __construct(
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly StoreManagerInterface $storeManager,
-        private readonly CustomDomain $customDomain
+        private readonly CustomDomain $customDomain,
+        private readonly LoggerInterface $logger
     ) {
     }
 

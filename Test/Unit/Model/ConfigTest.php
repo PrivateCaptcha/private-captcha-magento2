@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\Client;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
+use Psr\Log\LoggerInterface;
 
 final class ConfigTest extends TestCase
 {
@@ -103,6 +104,27 @@ final class ConfigTest extends TestCase
         self::assertSame('example.test', $config->getVerificationDomain(3));
     }
 
+    public function testInvalidConfiguredCustomDomainUsesDefaultEndpoints(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('warning')
+            ->with(
+                'PrivateCaptcha: Invalid custom domain configured, using default endpoints',
+                [
+                    'custom_domain' => 'https://example.test/path',
+                    'error' => 'Custom Domain must be a valid hostname.',
+                ]
+            );
+        $config = $this->createConfig(
+            [Config::PATH_CUSTOM_DOMAIN => 'https://example.test/path'],
+            [],
+            $logger
+        );
+
+        self::assertSame(Config::DEFAULT_SCRIPT_URL, $config->getScriptUrl(3));
+    }
+
     public function testEuIsolationUsesTheSdkEuDomainWithoutCustomDomain(): void
     {
         $config = $this->createConfig([], ['private_captcha/advanced/eu_isolation' => true]);
@@ -144,7 +166,11 @@ final class ConfigTest extends TestCase
         self::assertSame('font-size: 16px; color: teal;', $config->getCustomStyles(3));
     }
 
-    private function createConfig(array $values = [], array $flags = []): Config
+    private function createConfig(
+        array $values = [],
+        array $flags = [],
+        ?LoggerInterface $logger = null
+    ): Config
     {
         $scopeConfig = $this->createStub(ScopeConfigInterface::class);
         $scopeConfig->method('getValue')->willReturnCallback(
@@ -175,6 +201,11 @@ final class ConfigTest extends TestCase
         $storeManager->method('getStore')->willReturn($store);
         $storeManager->method('getWebsite')->willReturn($website);
 
-        return new Config($scopeConfig, $storeManager, $this->customDomain);
+        return new Config(
+            $scopeConfig,
+            $storeManager,
+            $this->customDomain,
+            $logger ?? $this->createStub(LoggerInterface::class)
+        );
     }
 }

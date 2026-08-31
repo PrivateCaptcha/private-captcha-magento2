@@ -254,7 +254,12 @@ final class SdkVerifierTest extends TestCase
         $storeManager->method('getStore')->willReturn($store);
         $storeManager->method('getWebsite')->willReturn($website);
 
-        return new Config($scopeConfig, $storeManager, new CustomDomain());
+        return new Config(
+            $scopeConfig,
+            $storeManager,
+            new CustomDomain(),
+            $this->createStub(LoggerInterface::class)
+        );
     }
 }
 
