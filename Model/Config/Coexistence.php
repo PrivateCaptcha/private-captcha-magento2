@@ -185,8 +185,8 @@ class Coexistence
 
     private function hasRecaptchaCredentials(string $configGroup, string $websiteCode): bool
     {
-        return !empty($this->getValue('recaptcha_frontend/' . $configGroup . '/public_key', $websiteCode))
-            && !empty($this->getValue('recaptcha_frontend/' . $configGroup . '/private_key', $websiteCode));
+        return trim($this->getValue('recaptcha_frontend/' . $configGroup . '/public_key', $websiteCode)) !== ''
+            && trim($this->getValue('recaptcha_frontend/' . $configGroup . '/private_key', $websiteCode)) !== '';
     }
 
     /** @param list<string> $modules */
