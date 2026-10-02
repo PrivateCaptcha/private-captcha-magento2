@@ -29,7 +29,9 @@ class Config
     public const PATH_EU_ISOLATION = 'private_captcha/advanced/eu_isolation';
     public const PATH_CUSTOM_DOMAIN = 'private_captcha/advanced/custom_domain';
     public const PATH_DEBUG_MODE = 'private_captcha/advanced/debug_mode';
+    public const PATH_SCRIPT = 'private_captcha/advanced/script';
     public const PATH_CUSTOM_STYLES = 'private_captcha/advanced/custom_styles';
+    public const PATH_THEME = 'private_captcha/advanced/theme';
     public const PATH_LANGUAGE = 'private_captcha/advanced/language';
     public const PATH_START_MODE = 'private_captcha/advanced/start_mode';
 
@@ -45,7 +47,9 @@ class Config
     ];
 
     public const LANGUAGES = ['auto', 'en', 'de', 'es', 'fr', 'it', 'nl', 'sv', 'no', 'pl', 'fi', 'et', 'uk', 'tr'];
-    public const START_MODES = ['auto', 'click'];
+    public const START_MODES = ['auto', 'click', 'load'];
+    public const THEMES = ['light', 'dark', 'auto'];
+    public const SCRIPTS = ['default', 'extended'];
 
     public function __construct(
         private readonly ScopeConfigInterface $scopeConfig,
@@ -114,9 +118,13 @@ class Config
     {
         $customDomain = $this->getCustomDomain($storeId);
 
-        return $customDomain === ''
+        $scriptUrl = $customDomain === ''
             ? self::DEFAULT_SCRIPT_URL
             : $this->customDomain->getScriptUrl($customDomain);
+
+        return $this->getValue(self::PATH_SCRIPT, $storeId) === 'extended'
+            ? str_replace('/privatecaptcha.js', '/privatecaptcha-ext.js', $scriptUrl)
+            : $scriptUrl;
     }
 
     public function getPuzzleEndpoint(?int $storeId = null): ?string
@@ -153,6 +161,13 @@ class Config
         $language = $this->getStoreValue(self::PATH_LANGUAGE, $storeId);
 
         return in_array($language, self::LANGUAGES, true) ? $language : 'auto';
+    }
+
+    public function getTheme(?int $storeId = null): string
+    {
+        $theme = $this->getStoreValue(self::PATH_THEME, $storeId);
+
+        return in_array($theme, self::THEMES, true) ? $theme : 'light';
     }
 
     public function getStartMode(?int $storeId = null): string

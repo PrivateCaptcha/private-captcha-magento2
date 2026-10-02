@@ -246,6 +246,8 @@ final class ConfigSaveValidatorTest extends TestCase
                 return $values[$path] ?? match ($path) {
                     Config::PATH_EU_ISOLATION, Config::PATH_DEBUG_MODE => '0',
                     Config::PATH_LANGUAGE, Config::PATH_START_MODE => 'auto',
+                    Config::PATH_THEME => 'light',
+                    Config::PATH_SCRIPT => 'default',
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_REGISTRATION],
                     Config::FORM_PATHS[Config::FORM_FORGOT_PASSWORD],

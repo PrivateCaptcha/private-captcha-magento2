@@ -21,7 +21,9 @@
                 <eu_isolation>0</eu_isolation>
                 <custom_domain/>
                 <debug_mode>0</debug_mode>
+                <script>default</script>
                 <custom_styles/>
+                <theme>light</theme>
                 <language>auto</language>
                 <start_mode>auto</start_mode>
             </advanced>

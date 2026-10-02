@@ -81,10 +81,20 @@
                     <comment>Captcha widget prints verbose logs to browser console to help with debugging.</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
+                <field id="script" translate="label comment" type="select" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Script</label>
+                    <comment>Extended script adds support for memory-hard challenges (has to be enabled in the Private Captcha portal).</comment>
+                    <source_model>PrivateCaptcha\PrivateCaptcha\Model\Config\Source\Script</source_model>
+                </field>
                 <field id="custom_styles" translate="label comment hint" type="textarea" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Custom Styles</label>
                     <comment>Custom CSS styles for the captcha widget. Leave empty to use default styles.</comment>
                     <hint>font-size: inherit;</hint>
+                </field>
+                <field id="theme" translate="label comment" type="select" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Theme</label>
+                    <comment>Color theme for the captcha widget interface.</comment>
+                    <source_model>PrivateCaptcha\PrivateCaptcha\Model\Config\Source\Theme</source_model>
                 </field>
                 <field id="language" translate="label comment" type="select" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Language</label>

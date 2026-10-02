@@ -13,6 +13,7 @@ class StartMode implements OptionSourceInterface
         return [
             ['value' => 'auto', 'label' => __('Automatic')],
             ['value' => 'click', 'label' => __('On Click')],
+            ['value' => 'load', 'label' => __('On load')],
         ];
     }
 }
