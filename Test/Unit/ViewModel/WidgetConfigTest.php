@@ -8,8 +8,6 @@ use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\ViewModel\WidgetConfig;
 
-require_once dirname(__DIR__, 3) . '/ViewModel/WidgetConfig.php';
-
 final class WidgetConfigTest extends TestCase
 {
     public function testTemplateEscapesUntrustedAttributesWithoutRenderingSecrets(): void
@@ -24,6 +22,7 @@ final class WidgetConfigTest extends TestCase
 
         self::assertStringContainsString('data-sitekey="site-key&quot;&lt;"', $html);
         self::assertStringContainsString('data-puzzle-endpoint="https://api.example.test/puzzle?&lt;"', $html);
+        self::assertStringContainsString('data-theme="dark"', $html);
         self::assertStringContainsString('data-styles="color: teal; &quot;"', $html);
         self::assertStringNotContainsString('site-key"<', $html);
         self::assertStringNotContainsString('https://api.example.test/puzzle?<', $html);
@@ -40,6 +39,7 @@ final class WidgetConfigTest extends TestCase
         $config->method('isFormEnabled')->willReturn(true);
         $config->method('getSiteKey')->willReturn($siteKey);
         $config->method('getScriptUrl')->willReturn('https://cdn.example.test/widget/js/privatecaptcha.js');
+        $config->method('getTheme')->willReturn('dark');
         $config->method('getLanguage')->willReturn('auto');
         $config->method('getStartMode')->willReturn('auto');
         $config->method('isEuIsolation')->willReturn(false);

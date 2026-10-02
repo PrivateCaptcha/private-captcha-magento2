@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace PrivateCaptcha\PrivateCaptcha\Model;
 
+use InvalidArgumentException;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PrivateCaptcha\Client;
+use Psr\Log\LoggerInterface;
 
 class Config
 {
@@ -46,15 +48,16 @@ class Config
         self::FORM_ORDERS_RETURNS => 'private_captcha/protected_forms/orders_returns',
     ];
 
+    public const THEMES = ['light', 'dark', 'auto'];
     public const LANGUAGES = ['auto', 'en', 'de', 'es', 'fr', 'it', 'nl', 'sv', 'no', 'pl', 'fi', 'et', 'uk', 'tr'];
     public const START_MODES = ['auto', 'click', 'load'];
-    public const THEMES = ['light', 'dark', 'auto'];
     public const SCRIPTS = ['default', 'extended'];
 
     public function __construct(
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly StoreManagerInterface $storeManager,
-        private readonly CustomDomain $customDomain
+        private readonly CustomDomain $customDomain,
+        private readonly LoggerInterface $logger
     ) {
     }
 
@@ -111,7 +114,15 @@ class Config
 
     public function getCustomDomain(?int $storeId = null): string
     {
-        return $this->customDomain->normalize($this->getValue(self::PATH_CUSTOM_DOMAIN, $storeId));
+        try {
+            return $this->customDomain->normalize($this->getValue(self::PATH_CUSTOM_DOMAIN, $storeId));
+        } catch (InvalidArgumentException $e) {
+            $this->logger->warning('PrivateCaptcha: Invalid custom domain configured, using default endpoints', [
+                'custom_domain' => $this->getValue(self::PATH_CUSTOM_DOMAIN, $storeId),
+                'error' => $e->getMessage(),
+            ]);
+            return ''; // Return empty string to use default endpoints
+        }
     }
 
     public function getScriptUrl(?int $storeId = null): string
@@ -156,18 +167,18 @@ class Config
         return trim($styles) === '' ? self::DEFAULT_CUSTOM_STYLES : $styles;
     }
 
-    public function getLanguage(?int $storeId = null): string
-    {
-        $language = $this->getStoreValue(self::PATH_LANGUAGE, $storeId);
-
-        return in_array($language, self::LANGUAGES, true) ? $language : 'auto';
-    }
-
     public function getTheme(?int $storeId = null): string
     {
         $theme = $this->getStoreValue(self::PATH_THEME, $storeId);
 
         return in_array($theme, self::THEMES, true) ? $theme : 'light';
+    }
+
+    public function getLanguage(?int $storeId = null): string
+    {
+        $language = $this->getStoreValue(self::PATH_LANGUAGE, $storeId);
+
+        return in_array($language, self::LANGUAGES, true) ? $language : 'auto';
     }
 
     public function getStartMode(?int $storeId = null): string

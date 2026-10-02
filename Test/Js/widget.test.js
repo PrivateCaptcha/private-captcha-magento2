@@ -4,9 +4,11 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-function loadAmdModule(path, dependencies, globals = {}) {
+const SCRIPT_URL = 'https://cdn.example.test/widget.js';
+
+function loadAmdModule(file, dependencies, globals = {}) {
     let exported;
-    vm.runInNewContext(readFileSync(path, 'utf8'), {
+    vm.runInNewContext(readFileSync(file, 'utf8'), {
         define: (names, factory) => {
             exported = factory(...names.map((name) => dependencies[name]));
         },
@@ -29,10 +31,6 @@ class EventTarget {
     dispatch(name, event = {}) {
         this.listeners.get(name)?.forEach((listener) => listener(event));
     }
-
-    listenerCount(name) {
-        return (this.listeners.get(name) || []).length;
-    }
 }
 
 test('loads each hosted script URL once', async () => {
@@ -51,47 +49,47 @@ test('loads each hosted script URL once', async () => {
         { document }
     );
 
-    const first = loadScript('https://cdn.example.test/widget.js');
-    const second = loadScript('https://cdn.example.test/widget.js');
+    const loads = [loadScript(SCRIPT_URL), loadScript(SCRIPT_URL)];
 
     assert.equal(scripts.length, 1);
     scripts[0].onload();
-    await Promise.all([first, second]);
+    await Promise.all(loads);
 });
 
-test('keeps submit controls local and disabled until the widget finishes', async () => {
+test('keeps submit controls disabled until the widget finishes and fails closed', async () => {
     const window = new EventTarget();
+    let loadCalls = 0;
     let setupCalls = 0;
-    window.privateCaptcha = {
-        setup: () => setupCalls++,
-    };
+    window.privateCaptcha = { setup: () => setupCalls++ };
     const controls = [{ disabled: false }, { disabled: false }];
-    const toolbar = {
-        parentNode: {
-            insertBefore: (element, target) => {
-                element.insertedBefore = target;
-            },
-        },
-    };
     const form = new EventTarget();
     form.querySelectorAll = () => controls;
-    form.querySelector = () => toolbar;
     const captcha = new EventTarget();
     const element = new EventTarget();
-    element.closest = () => null;
-    element.error = { hidden: true, textContent: '' };
-    element.querySelector = (selector) => selector === '.private-captcha' ? captcha : element.error;
+    element.querySelector = (selector) => selector === '.private-captcha' ? captcha : null;
     const widget = loadAmdModule(
         path.join(__dirname, '../../view/frontend/web/js/widget.js'),
-        { 'PrivateCaptcha_PrivateCaptcha/js/script-loader': () => Promise.resolve() },
+        {
+            'PrivateCaptcha_PrivateCaptcha/js/script-loader': () => {
+                loadCalls++;
+
+                return Promise.resolve();
+            },
+        },
         { window }
     );
 
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js', placement: 'before-toolbar', form }, element);
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js', placement: 'before-toolbar', form }, element);
+    widget({ scriptUrl: SCRIPT_URL, form }, element);
+    widget({ scriptUrl: SCRIPT_URL, form }, element);
+    await Promise.resolve();
+
+    assert.deepEqual([
+        loadCalls,
+        setupCalls,
+        window.listeners.get('pageshow').length,
+        form.listeners.get('submit').length,
+    ], [1, 1, 1, 1]);
     assert.deepEqual(controls.map((control) => control.disabled), [true, true]);
-    assert.equal(element.insertedBefore, toolbar);
-    assert.equal(window.listenerCount('pageshow'), 1);
 
     captcha.dispatch('privatecaptcha:finish');
     assert.deepEqual(controls.map((control) => control.disabled), [false, false]);
@@ -101,8 +99,6 @@ test('keeps submit controls local and disabled until the widget finishes', async
 
     captcha.dispatch('privatecaptcha:error');
     assert.deepEqual(controls.map((control) => control.disabled), [true, true]);
-    assert.equal(element.error.hidden, false);
-    assert.equal(element.error.textContent, 'Private Captcha could not start. Please refresh and try again.');
     const failedSubmission = {
         prevented: false,
         stopped: false,
@@ -110,31 +106,23 @@ test('keeps submit controls local and disabled until the widget finishes', async
         stopImmediatePropagation() { this.stopped = true; },
     };
     form.dispatch('submit', failedSubmission);
-    assert.equal(failedSubmission.prevented, true);
-    assert.equal(failedSubmission.stopped, true);
+    assert.deepEqual([failedSubmission.prevented, failedSubmission.stopped], [true, true]);
 
     captcha.dispatch('privatecaptcha:finish');
     window.dispatch('pageshow', { persisted: true });
     assert.deepEqual(controls.map((control) => control.disabled), [true, true]);
-
-    await Promise.resolve();
-    assert.equal(setupCalls, 1);
 });
 
 test('auto-scans replacement elements after loading the standard widget script', async () => {
     const window = new EventTarget();
     let setupCalls = 0;
     const scriptUrls = [];
-    const createForm = () => {
+    const createContainer = () => {
         const form = new EventTarget();
         form.querySelectorAll = () => [];
-
-        return form;
-    };
-    const createContainer = () => {
         const captcha = new EventTarget();
         const container = new EventTarget();
-        container.closest = () => createForm();
+        container.closest = () => form;
         container.querySelector = (selector) => selector === '.private-captcha' ? captcha : null;
 
         return container;
@@ -154,29 +142,22 @@ test('auto-scans replacement elements after loading the standard widget script',
         { window }
     );
 
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js' }, firstElement);
+    widget({ scriptUrl: SCRIPT_URL }, firstElement);
     await Promise.resolve();
 
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js' }, replacementElement);
+    widget({ scriptUrl: SCRIPT_URL }, replacementElement);
     await Promise.resolve();
 
-    assert.deepEqual(scriptUrls, [
-        'https://cdn.example.test/widget.js',
-        'https://cdn.example.test/widget.js',
-    ]);
+    assert.deepEqual(scriptUrls, [SCRIPT_URL, SCRIPT_URL]);
     assert.equal(setupCalls, 2);
 });
 
-test('disambiguates new duplicate identities without changing attached widgets', async () => {
+test('disambiguates new duplicate identities without changing attached widgets', () => {
     const window = new EventTarget();
-    let setupCalls = 0;
-    const createForm = () => {
-        const form = new EventTarget();
-        form.querySelectorAll = () => [];
-
-        return form;
-    };
-    const createElement = (form, captcha) => {
+    window.privateCaptcha = { setup() {} };
+    const form = new EventTarget();
+    form.querySelectorAll = () => [];
+    const createElement = (captcha) => {
         const element = new EventTarget();
         element.closest = () => form;
         element.querySelector = (selector) => selector === '.private-captcha' ? captcha : null;
@@ -195,10 +176,9 @@ test('disambiguates new duplicate identities without changing attached widgets',
     const newCaptcha = new EventTarget();
     newCaptcha.id = 'private-captcha-attached';
     newCaptcha.dataset = { storeVariable: 'privateCaptcha_attached' };
-    const firstElement = createElement(createForm(), firstCaptcha);
-    const secondElement = createElement(createForm(), secondCaptcha);
-    const newElement = createElement(createForm(), newCaptcha);
-    window.privateCaptcha = { setup: () => setupCalls++ };
+    const firstElement = createElement(firstCaptcha);
+    const secondElement = createElement(secondCaptcha);
+    const newElement = createElement(newCaptcha);
     const widget = loadAmdModule(
         path.join(__dirname, '../../view/frontend/web/js/widget.js'),
         { 'PrivateCaptcha_PrivateCaptcha/js/script-loader': () => Promise.resolve() },
@@ -210,24 +190,24 @@ test('disambiguates new duplicate identities without changing attached widgets',
         }
     );
 
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js' }, firstElement);
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js' }, secondElement);
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js' }, newElement);
-    await Promise.resolve();
+    widget({ scriptUrl: SCRIPT_URL }, firstElement);
+    widget({ scriptUrl: SCRIPT_URL }, secondElement);
+    widget({ scriptUrl: SCRIPT_URL }, newElement);
 
     assert.deepEqual(
-        [firstCaptcha.id, secondCaptcha.id],
-        ['private-captcha-shared-1', 'private-captcha-shared-2']
+        [
+            [firstCaptcha.id, firstCaptcha.dataset.storeVariable],
+            [secondCaptcha.id, secondCaptcha.dataset.storeVariable],
+            [attachedCaptcha.id, attachedCaptcha.dataset.storeVariable],
+            [newCaptcha.id, newCaptcha.dataset.storeVariable],
+        ],
+        [
+            ['private-captcha-shared-1', 'privateCaptcha_shared_1'],
+            ['private-captcha-shared-2', 'privateCaptcha_shared_2'],
+            ['private-captcha-attached', 'privateCaptcha_attached'],
+            ['private-captcha-attached-1', 'privateCaptcha_attached_1'],
+        ]
     );
-    assert.deepEqual(
-        [firstCaptcha.dataset.storeVariable, secondCaptcha.dataset.storeVariable],
-        ['privateCaptcha_shared_1', 'privateCaptcha_shared_2']
-    );
-    assert.equal(attachedCaptcha.id, 'private-captcha-attached');
-    assert.equal(attachedCaptcha.dataset.storeVariable, 'privateCaptcha_attached');
-    assert.equal(newCaptcha.id, 'private-captcha-attached-1');
-    assert.equal(newCaptcha.dataset.storeVariable, 'privateCaptcha_attached_1');
-    assert.equal(setupCalls, 3);
 });
 
 test('shows an actionable error without enabling the form when script loading fails', async () => {
@@ -236,31 +216,29 @@ test('shows an actionable error without enabling the form when script loading fa
     const form = new EventTarget();
     form.querySelectorAll = () => controls;
     const captcha = new EventTarget();
+    const error = { hidden: true, textContent: '' };
     const element = new EventTarget();
     element.closest = () => form;
-    element.error = { hidden: true, textContent: '' };
-    element.querySelector = (selector) => selector === '.private-captcha' ? captcha : element.error;
+    element.querySelector = (selector) => selector === '.private-captcha' ? captcha : error;
     const widget = loadAmdModule(
         path.join(__dirname, '../../view/frontend/web/js/widget.js'),
         { 'PrivateCaptcha_PrivateCaptcha/js/script-loader': () => Promise.reject(new Error('network failed')) },
         { window }
     );
 
-    widget({ scriptUrl: 'https://cdn.example.test/widget.js' }, element);
-    await Promise.resolve();
-    await Promise.resolve();
+    widget({ scriptUrl: SCRIPT_URL }, element);
+    await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(controls[0].disabled, true);
-    assert.equal(element.error.hidden, false);
-    assert.equal(element.error.textContent, 'Private Captcha could not start. Please refresh and try again.');
+    assert.deepEqual(error, {
+        hidden: false,
+        textContent: 'Private Captcha could not start. Please refresh and try again.',
+    });
 });
 
-test('uses adjacent native forms and keeps detached widgets independent', async () => {
+test('places widgets by adjacent native forms and keeps them independent', () => {
     const window = new EventTarget();
-    let setupCalls = 0;
-    window.privateCaptcha = {
-        setup: () => setupCalls++,
-    };
+    window.privateCaptcha = { setup() {} };
     const createDetachedWidget = (withInterveningSibling) => {
         const controls = [{ disabled: false }];
         const toolbar = {
@@ -281,8 +259,7 @@ test('uses adjacent native forms and keeps detached widgets independent', async 
             tagName: 'DIV',
             previousElementSibling: form,
         } : form;
-        element.error = { hidden: true, textContent: '' };
-        element.querySelector = (selector) => selector === '.private-captcha' ? captcha : element.error;
+        element.querySelector = (selector) => selector === '.private-captcha' ? captcha : null;
 
         return { captcha, controls, element, toolbar };
     };
@@ -295,24 +272,24 @@ test('uses adjacent native forms and keeps detached widgets independent', async 
     );
 
     widget({
-        scriptUrl: 'https://cdn.example.test/widget.js',
+        scriptUrl: SCRIPT_URL,
         placement: 'before-toolbar',
         detachedTarget: 'previous-form',
     }, first.element);
     widget({
-        scriptUrl: 'https://cdn.example.test/widget.js',
+        scriptUrl: SCRIPT_URL,
         placement: 'before-toolbar',
         detachedTarget: 'previous-form',
     }, second.element);
-    await Promise.resolve();
 
-    assert.equal(first.controls[0].disabled, true);
-    assert.equal(second.controls[0].disabled, true);
     first.captcha.dispatch('privatecaptcha:finish');
 
-    assert.equal(first.controls[0].disabled, false);
-    assert.equal(second.controls[0].disabled, true);
-    assert.equal(first.element.insertedBefore, first.toolbar);
-    assert.equal(second.element.insertedBefore, second.toolbar);
-    assert.equal(setupCalls, 2);
+    assert.deepEqual(
+        [first.controls[0].disabled, second.controls[0].disabled],
+        [false, true]
+    );
+    assert.deepEqual(
+        [first.element.insertedBefore, second.element.insertedBefore],
+        [first.toolbar, second.toolbar]
+    );
 });

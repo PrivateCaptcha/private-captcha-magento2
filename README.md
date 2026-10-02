@@ -7,6 +7,7 @@
 - **Form Protection**: Most standard StoreFront forms (see [below](#supported-forms))
 - **Flexible Configuration**: Theme, language, start mode, and custom styling options per Website and Store
 - **EU Compliance**: Support for EU-only endpoints and custom domains
+- **Localization**: Supports English, German and Frech admin UI settings (captcha widget itself supports many more languages)
 
 ## Installation
 
@@ -38,11 +39,9 @@
 
 ## Requirements
 
-- Magento / Adobe Commerce 2.4.x
-- PHP 8.1+
+- Magento Open Source or Adobe Commerce 2.4.6 (PHP 8.1/8.2), 2.4.7 (PHP 8.2/8.3), 2.4.8 (PHP 8.3/8.4), or 2.4.9 (PHP 8.5)
 - [Private Captcha account](https://portal.privatecaptcha.com/signup)
 
 ## License
 
 MIT License
-

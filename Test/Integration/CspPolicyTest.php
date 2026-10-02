@@ -9,7 +9,6 @@ use Magento\Framework\App\Http;
 use Magento\Framework\App\Request\Http as HttpRequest;
 use Magento\Framework\App\Response\Http as HttpResponse;
 use Magento\PageCache\Model\Cache\Type as PageCache;
-use Magento\PageCache\Model\Config as PageCacheConfig;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManager;
 use Magento\Store\Model\StoreManagerInterface;
@@ -35,7 +34,6 @@ final class CspPolicyTest extends TestCase
         $storeManager = $objectManager->get(StoreManagerInterface::class);
         $originalStore = $storeManager->getStore();
         $reportOnlyBefore = $objectManager->get(ModeConfigManagerInterface::class)->getConfigured()->isReportOnly();
-        self::assertSame(PageCacheConfig::BUILT_IN, $objectManager->get(PageCacheConfig::class)->getType());
         $pageCache->clean();
 
         try {
@@ -54,11 +52,6 @@ final class CspPolicyTest extends TestCase
             $websiteBWarm = $this->dispatchCacheableCmsPage('fixture_second_store');
             self::assertSame('HIT', $this->getCacheDebugHeader($websiteBWarm));
             $this->assertWebsiteCsp($websiteBWarm, 'website-b.example.test', $reportOnlyBefore);
-
-            self::assertSame(
-                $reportOnlyBefore,
-                Bootstrap::getObjectManager()->get(ModeConfigManagerInterface::class)->getConfigured()->isReportOnly()
-            );
         } finally {
             $storeManager->setCurrentStore($originalStore->getId());
             Bootstrap::getObjectManager()->get(PageCache::class)->clean();

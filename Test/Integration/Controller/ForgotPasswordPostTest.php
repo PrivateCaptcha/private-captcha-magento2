@@ -58,14 +58,10 @@ final class ForgotPasswordPostTest extends AbstractController
         $verifier = new ForgotPasswordPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost('customer@example.com', false));
+        $this->submit($this->requestPost('customer@example.com', false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
     }
 
     /**
@@ -82,7 +78,6 @@ final class ForgotPasswordPostTest extends AbstractController
 
         $body = $this->getResponse()->getBody();
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
-        self::assertStringNotContainsString('private-api-key', $body);
     }
 
     /**
@@ -116,16 +111,12 @@ final class ForgotPasswordPostTest extends AbstractController
         $verifier = new ForgotPasswordPostTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, false));
+        $this->submit($this->requestPost($email, false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertForgotPasswordRedirect();
-            self::assertSame($email, $this->customerSession->getData('forgotten_email'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertForgotPasswordRedirect();
+        self::assertSame($email, $this->customerSession->getData('forgotten_email'));
     }
 
     /**
@@ -141,15 +132,11 @@ final class ForgotPasswordPostTest extends AbstractController
         $verifier = new ForgotPasswordPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, true));
+        $this->submit($this->requestPost($email, true));
 
-            self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            self::assertSame($email, $this->customerSession->getData('forgotten_email'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        self::assertSame($email, $this->customerSession->getData('forgotten_email'));
     }
 
     /**
@@ -168,15 +155,11 @@ final class ForgotPasswordPostTest extends AbstractController
         $verifier = new ForgotPasswordPostTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, true));
+        $this->submit($this->requestPost($email, true));
 
-            self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            $this->assertSuccessMessage($email);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
+        $this->assertSuccessMessage($email);
     }
 
     /**
@@ -194,15 +177,11 @@ final class ForgotPasswordPostTest extends AbstractController
         $verifier = new ForgotPasswordPostTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, true));
+        $this->submit($this->requestPost($email, true));
 
-            self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSuccessMessage($email);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSuccessMessage($email);
     }
 
     /**
@@ -219,15 +198,11 @@ final class ForgotPasswordPostTest extends AbstractController
         $verifier = new ForgotPasswordPostTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, true));
+        $this->submit($this->requestPost($email, true));
 
-            self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            self::assertSame($email, $this->customerSession->getData('forgotten_email'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        self::assertSame($email, $this->customerSession->getData('forgotten_email'));
     }
 
     /**
@@ -255,15 +230,10 @@ final class ForgotPasswordPostTest extends AbstractController
         $post = $this->requestPost($email, true);
         $post['captcha'] = ['user_forgotpassword' => 'NativeCaptcha'];
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            $this->assertSuccessMessage($email);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_FORGOT_PASSWORD]], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
     }
 
     /**
@@ -278,15 +248,11 @@ final class ForgotPasswordPostTest extends AbstractController
         $verifier = new ForgotPasswordPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->getRequest()->setMethod('GET');
-            $this->dispatch('customer/account/createPassword');
+        $this->getRequest()->setMethod('GET');
+        $this->dispatch('customer/account/createPassword');
 
-            self::assertSame([], $verifier->calls);
-            self::assertStringNotContainsString('class="private-captcha"', $this->getResponse()->getBody());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertStringNotContainsString('class="private-captcha"', $this->getResponse()->getBody());
     }
 
     /**

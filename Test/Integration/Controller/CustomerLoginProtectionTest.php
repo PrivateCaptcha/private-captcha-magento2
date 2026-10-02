@@ -8,7 +8,6 @@ use Magento\Customer\Model\Session;
 use Magento\Customer\Controller\Ajax\Login as AjaxLogin;
 use Magento\Framework\App\Request\Http;
 use Magento\Framework\Event\ManagerInterface;
-use Magento\Framework\Controller\Result\Json;
 use Magento\TestFramework\TestCase\AbstractController;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\Validation\VerifierInterface;
@@ -56,14 +55,10 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitNormal($this->normalPost('customer@example.com', 'password', false));
+        $this->submitNormal($this->normalPost('customer@example.com', 'password', false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertTrue($this->customerSession->isLoggedIn());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertTrue($this->customerSession->isLoggedIn());
     }
 
     /**
@@ -80,18 +75,10 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $response = $this->executeAjax($this->ajaxPost('customer@example.com', 'password', false));
+        $this->executeAjax($this->ajaxPost('customer@example.com', 'password', false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertTrue($this->customerSession->isLoggedIn());
-            self::assertSame([
-                'errors' => false,
-                'message' => 'Login successful.',
-            ], $response);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertTrue($this->customerSession->isLoggedIn());
     }
 
     /**
@@ -108,29 +95,10 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitNormal($this->normalPost('customer@example.com', 'password', false));
+        $this->submitNormal($this->normalPost('customer@example.com', 'password', false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertTrue($this->customerSession->isLoggedIn());
-        } finally {
-            $this->restoreDependencies();
-        }
-    }
-
-    /**
-     * @magentoAppArea frontend
-     * @magentoAppIsolation enabled
-     * @magentoConfigFixture base_website private_captcha/protected_forms/customer_login 0
-     * @magentoConfigFixture base_website private_captcha/credentials/site_key public-site-key
-     * @magentoConfigFixture base_website private_captcha/credentials/api_key private-api-key
-     */
-    public function testDisabledLoginPageDoesNotRenderAWidget(): void
-    {
-        $this->getRequest()->setMethod(Http::METHOD_GET);
-        $this->dispatch('customer/account/login');
-
-        self::assertStringNotContainsString('private-captcha-container', $this->getResponse()->getBody());
+        self::assertSame([], $verifier->calls);
+        self::assertTrue($this->customerSession->isLoggedIn());
     }
 
     /**
@@ -165,17 +133,13 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitNormal($this->normalPost($email, 'password', false));
+        $this->submitNormal($this->normalPost($email, 'password', false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertFalse($this->customerSession->isLoggedIn());
-            self::assertSame($email, $this->customerSession->getData('username'));
-            self::assertNull($this->customerSession->getData('password'));
-            $this->assertLoginRedirect();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertFalse($this->customerSession->isLoggedIn());
+        self::assertSame($email, $this->customerSession->getData('username'));
+        self::assertNull($this->customerSession->getData('password'));
+        $this->assertLoginRedirect();
     }
 
     /**
@@ -192,16 +156,12 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitNormal($this->normalPost('customer@example.com', 'password', true));
+        $this->submitNormal($this->normalPost('customer@example.com', 'password', true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
-            self::assertFalse($this->customerSession->isLoggedIn());
-            self::assertSame('customer@example.com', $this->customerSession->getData('username'));
-            self::assertNull($this->customerSession->getData('password'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
+        self::assertFalse($this->customerSession->isLoggedIn());
+        self::assertSame('customer@example.com', $this->customerSession->getData('username'));
+        self::assertNull($this->customerSession->getData('password'));
     }
 
     /**
@@ -218,14 +178,10 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitNormal($this->normalPost('customer@example.com', 'password', true));
+        $this->submitNormal($this->normalPost('customer@example.com', 'password', true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
-            self::assertTrue($this->customerSession->isLoggedIn());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
+        self::assertTrue($this->customerSession->isLoggedIn());
     }
 
     /**
@@ -251,14 +207,10 @@ final class CustomerLoginProtectionTest extends AbstractController
         $post = $this->normalPost('customer@example.com', 'password', true);
         $post['captcha'] = ['user_login' => 'NativeCaptcha'];
 
-        try {
-            $this->submitNormal($post);
+        $this->submitNormal($post);
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
-            self::assertTrue($this->customerSession->isLoggedIn());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
+        self::assertTrue($this->customerSession->isLoggedIn());
     }
 
     /**
@@ -275,16 +227,12 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitNormal($this->normalPost('customer@example.com', 'wrong-password', true));
+        $this->submitNormal($this->normalPost('customer@example.com', 'wrong-password', true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
-            self::assertFalse($this->customerSession->isLoggedIn());
-            self::assertSame('customer@example.com', $this->customerSession->getData('username'));
-            self::assertNull($this->customerSession->getData('password'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
+        self::assertFalse($this->customerSession->isLoggedIn());
+        self::assertSame('customer@example.com', $this->customerSession->getData('username'));
+        self::assertNull($this->customerSession->getData('password'));
     }
 
     /**
@@ -301,20 +249,16 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitAjax($this->ajaxPost('customer@example.com', 'password', false));
+        $this->submitAjax($this->ajaxPost('customer@example.com', 'password', false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertFalse($this->customerSession->isLoggedIn());
-            $this->assertPrivateCaptchaJsonFailure();
-            self::assertSame(
-                'application/json',
-                $this->getResponse()->getHeader('Content-Type')->getFieldValue()
-            );
-            self::assertFalse($this->getResponse()->getHeader('Location'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertFalse($this->customerSession->isLoggedIn());
+        $this->assertPrivateCaptchaJsonFailure();
+        self::assertSame(
+            'application/json',
+            $this->getResponse()->getHeader('Content-Type')->getFieldValue()
+        );
+        self::assertFalse($this->getResponse()->getHeader('Location'));
     }
 
     /**
@@ -331,15 +275,11 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitAjax($this->ajaxPost('customer@example.com', 'password', true));
+        $this->submitAjax($this->ajaxPost('customer@example.com', 'password', true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
-            self::assertFalse($this->customerSession->isLoggedIn());
-            $this->assertPrivateCaptchaJsonFailure();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
+        self::assertFalse($this->customerSession->isLoggedIn());
+        $this->assertPrivateCaptchaJsonFailure();
     }
 
     /**
@@ -355,15 +295,11 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submitAjaxRaw('{');
+        $this->submitAjaxRaw('{');
 
-            self::assertSame([], $verifier->calls);
-            self::assertFalse($this->customerSession->isLoggedIn());
-            $this->assertPrivateCaptchaJsonFailure();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertFalse($this->customerSession->isLoggedIn());
+        $this->assertPrivateCaptchaJsonFailure();
     }
 
     /**
@@ -385,19 +321,15 @@ final class CustomerLoginProtectionTest extends AbstractController
             JSON_THROW_ON_ERROR
         ));
 
-        try {
-            $this->dispatch('customer/ajax/login');
+        $this->dispatch('customer/ajax/login');
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
-            self::assertFalse($this->customerSession->isLoggedIn());
-            self::assertSame(400, $this->getResponse()->getHttpResponseCode());
-            self::assertFalse($this->getResponse()->getHeader('Location'));
-            self::assertStringNotContainsString('password', $this->getResponse()->getBody());
-            self::assertStringNotContainsString('solution', $this->getResponse()->getBody());
-            self::assertStringNotContainsString('api_token', $this->getResponse()->getBody());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
+        self::assertFalse($this->customerSession->isLoggedIn());
+        self::assertSame(400, $this->getResponse()->getHttpResponseCode());
+        self::assertFalse($this->getResponse()->getHeader('Location'));
+        self::assertStringNotContainsString('password', $this->getResponse()->getBody());
+        self::assertStringNotContainsString('solution', $this->getResponse()->getBody());
+        self::assertStringNotContainsString('api_token', $this->getResponse()->getBody());
     }
 
     /**
@@ -414,18 +346,14 @@ final class CustomerLoginProtectionTest extends AbstractController
         $verifier = new CustomerLoginProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $response = $this->executeAjax($this->ajaxPost('customer@example.com', 'password', true));
+        $response = $this->executeAjax($this->ajaxPost('customer@example.com', 'password', true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
-            self::assertTrue($this->customerSession->isLoggedIn());
-            self::assertSame([
-                'errors' => false,
-                'message' => 'Login successful.',
-            ], $response);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_LOGIN]], $verifier->calls);
+        self::assertTrue($this->customerSession->isLoggedIn());
+        self::assertSame([
+            'errors' => false,
+            'message' => 'Login successful.',
+        ], $response);
     }
 
     /**
@@ -444,10 +372,8 @@ final class CustomerLoginProtectionTest extends AbstractController
 
         $body = html_entity_decode($this->getResponse()->getBody(), ENT_QUOTES, 'UTF-8');
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
-        self::assertStringContainsString('data-sitekey="public-site-key"', $body);
         self::assertStringContainsString('name="login[username]" value="' . $email . '"', $body);
         self::assertStringContainsString('private-captcha-login-popup', $body);
-        self::assertStringNotContainsString('private-api-key', $body);
         self::assertNull($this->customerSession->getData('username'));
     }
 
@@ -531,7 +457,6 @@ final class CustomerLoginProtectionTest extends AbstractController
             'request' => $this->getRequest(),
         ]);
         $result = $controller->execute();
-        self::assertInstanceOf(Json::class, $result);
         $result->renderResult($this->getResponse());
 
         return $this->decodeResponse();

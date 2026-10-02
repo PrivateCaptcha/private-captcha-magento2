@@ -15,6 +15,7 @@ use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use PrivateCaptcha\Client;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
 
@@ -69,7 +70,8 @@ class ConfigSaveValidator
         private readonly StoreManagerInterface $storeManager,
         private readonly ConfigFactory $configFactory,
         private readonly SettingChecker $settingChecker,
-        private readonly CustomDomain $customDomain
+        private readonly CustomDomain $customDomain,
+        private readonly CurrentSettingsTester $settingsTester
     ) {
     }
 
@@ -78,10 +80,10 @@ class ConfigSaveValidator
         $this->scopeConfig->reinit();
     }
 
-    public function validate(MagentoConfig $config): void
+    public function validate(MagentoConfig $config): ConfigSaveValidationResult
     {
         if ($config->getSection() !== 'private_captcha') {
-            return;
+            return new ConfigSaveValidationResult(false);
         }
 
         $scope = $config->getScope();
@@ -99,7 +101,7 @@ class ConfigSaveValidator
 
         $groups = $config->getData('groups');
         if (!is_array($groups)) {
-            return;
+            return new ConfigSaveValidationResult(false);
         }
 
         if ($isStoreScope) {
@@ -108,7 +110,7 @@ class ConfigSaveValidator
                 ?? $config->getStore();
             $this->validateStoreValues($groups, $this->storeManager->getStore($storeId));
 
-            return;
+            return new ConfigSaveValidationResult(false);
         }
 
         if ($isWebsiteScope) {
@@ -116,21 +118,32 @@ class ConfigSaveValidator
                 ?? $config->getData('scope_code')
                 ?? $config->getData('website');
             $website = $this->storeManager->getWebsite($websiteId);
-            $this->validateEffectiveValues($groups, $website, false, $config);
+            $testResults = [];
+            $effectiveResult = $this->validateEffectiveValues($groups, $website, false, $config, $testResults);
+            if ($effectiveResult['disable_forms']) {
+                $this->disableForms($config);
+            }
 
-            return;
+            return new ConfigSaveValidationResult($effectiveResult['test_failed']);
         }
 
         $websiteId = $scope === ScopeConfigInterface::SCOPE_TYPE_DEFAULT ? null : $config->getWebsite();
         if ($websiteId) {
             $website = $this->storeManager->getWebsite($websiteId);
-            $this->validateEffectiveValues($groups, $website, false, $config);
+            $testResults = [];
+            $effectiveResult = $this->validateEffectiveValues($groups, $website, false, $config, $testResults);
+            if ($effectiveResult['disable_forms']) {
+                $this->disableForms($config);
+            }
 
-            return;
+            return new ConfigSaveValidationResult($effectiveResult['test_failed']);
         }
 
-        $this->validateEffectiveValues($groups, null, true, $config);
-        foreach ($this->storeManager->getWebsites(true) as $website) {
+        $testResults = [];
+        $defaultResult = $this->validateEffectiveValues($groups, null, true, $config, $testResults);
+        $settingsTestFailed = $defaultResult['test_failed'];
+        $websiteIdsToDisable = [];
+        foreach ($this->storeManager->getWebsites() as $website) {
             $websiteConfig = $this->configFactory->create(
                 [
                     'data' => [
@@ -139,8 +152,24 @@ class ConfigSaveValidator
                     ],
                 ]
             );
-            $this->validateEffectiveValues($groups, $website, true, $websiteConfig);
+            $websiteResult = $this->validateEffectiveValues(
+                $groups,
+                $website,
+                true,
+                $websiteConfig,
+                $testResults
+            );
+            if ($websiteResult['disable_forms']) {
+                $websiteIdsToDisable[] = (int) $website->getId();
+            }
+            $settingsTestFailed = $websiteResult['test_failed'] || $settingsTestFailed;
         }
+
+        if ($defaultResult['disable_forms']) {
+            $this->disableForms($config);
+        }
+
+        return new ConfigSaveValidationResult($settingsTestFailed, $websiteIdsToDisable);
     }
 
     /**
@@ -158,19 +187,19 @@ class ConfigSaveValidator
 
             if ($this->getPostedFieldData($path, $groups) !== null) {
                 throw new LocalizedException(
-                    __('Private Captcha Store View scope supports only Custom Styles, Theme, and Language.')
+                    __('Private Captcha Store View scope supports only Theme, Custom Styles, and Language.')
                 );
             }
-        }
-
-        $language = $this->getProjectedStoreValue(Config::PATH_LANGUAGE, $groups, $store);
-        if (!in_array($language, Config::LANGUAGES, true)) {
-            throw new LocalizedException(__('Private Captcha Language is invalid.'));
         }
 
         $theme = $this->getProjectedStoreValue(Config::PATH_THEME, $groups, $store);
         if (!in_array($theme, Config::THEMES, true)) {
             throw new LocalizedException(__('Private Captcha Theme is invalid.'));
+        }
+
+        $language = $this->getProjectedStoreValue(Config::PATH_LANGUAGE, $groups, $store);
+        if (!in_array($language, Config::LANGUAGES, true)) {
+            throw new LocalizedException(__('Private Captcha Language is invalid.'));
         }
 
         $this->getProjectedStoreValue(Config::PATH_CUSTOM_STYLES, $groups, $store);
@@ -210,22 +239,29 @@ class ConfigSaveValidator
 
     /**
      * @param array<string, mixed> $groups
+     * @param array<string, bool> $testResults
+     * @return array{test_failed: bool, disable_forms: bool}
      */
     private function validateEffectiveValues(
         array $groups,
         ?WebsiteInterface $website,
         bool $isDefaultSave,
-        MagentoConfig $scopeConfig
-    ): void {
+        MagentoConfig $scopeConfig,
+        array &$testResults
+    ): array {
         $values = [];
         foreach (self::FIELD_PATHS as $path => $_field) {
             $values[$path] = $this->getProjectedValue($path, $groups, $website, $isDefaultSave, $scopeConfig);
         }
 
         try {
-            $this->customDomain->normalize($values[Config::PATH_CUSTOM_DOMAIN]);
+            $customDomain = $this->customDomain->normalize($values[Config::PATH_CUSTOM_DOMAIN]);
         } catch (InvalidArgumentException) {
             throw new LocalizedException(__('Private Captcha Custom Domain must be a valid hostname.'));
+        }
+
+        if (!in_array($values[Config::PATH_THEME], Config::THEMES, true)) {
+            throw new LocalizedException(__('Private Captcha Theme is invalid.'));
         }
 
         if (!in_array($values[Config::PATH_LANGUAGE], Config::LANGUAGES, true)) {
@@ -234,10 +270,6 @@ class ConfigSaveValidator
 
         if (!in_array($values[Config::PATH_START_MODE], Config::START_MODES, true)) {
             throw new LocalizedException(__('Private Captcha Start Mode is invalid.'));
-        }
-
-        if (!in_array($values[Config::PATH_THEME], Config::THEMES, true)) {
-            throw new LocalizedException(__('Private Captcha Theme is invalid.'));
         }
 
         if (!in_array($values[Config::PATH_SCRIPT], Config::SCRIPTS, true)) {
@@ -261,13 +293,63 @@ class ConfigSaveValidator
             $isEnabled = $isEnabled || $values[$path] === '1';
         }
 
-        if (
-            $isEnabled
-            && (trim($values[Config::PATH_SITE_KEY]) === '' || trim($values[Config::PATH_API_KEY]) === '')
-        ) {
-            throw new LocalizedException(
-                __('Private Captcha requires both Site Key and API Key when a form is enabled.')
-            );
+        $hasCredentials = trim($values[Config::PATH_SITE_KEY]) !== ''
+            && trim($values[Config::PATH_API_KEY]) !== '';
+        $settingsTestFailed = $isEnabled && !$hasCredentials;
+        if ($hasCredentials) {
+            $domain = $customDomain !== ''
+                ? $customDomain
+                : ($values[Config::PATH_EU_ISOLATION] === '1' ? Client::EU_DOMAIN : null);
+            $testKey = hash('sha256', $values[Config::PATH_API_KEY] . "\0" . ($domain ?? ''));
+            if (!array_key_exists($testKey, $testResults)) {
+                $testResults[$testKey] = $this->settingsTester->test($values[Config::PATH_API_KEY], $domain);
+            }
+            $settingsTestFailed = !$testResults[$testKey];
+        }
+
+        $disableForms = $settingsTestFailed && $isEnabled;
+        if ($disableForms) {
+            $this->assertEnabledFormsCanBeDisabled($values, $website);
+        }
+
+        return ['test_failed' => $settingsTestFailed, 'disable_forms' => $disableForms];
+    }
+
+    private function disableForms(MagentoConfig $config): void
+    {
+        $groups = $config->getData('groups');
+        if (!is_array($groups)) {
+            return;
+        }
+
+        foreach (Config::FORM_PATHS as $path) {
+            [, $field] = self::FIELD_PATHS[$path];
+            $fieldData = $groups['protected_forms']['fields'][$field] ?? [];
+            $fieldData = is_array($fieldData) ? $fieldData : [];
+            $fieldData['value'] = '0';
+            unset($fieldData['inherit']);
+            $groups['protected_forms']['fields'][$field] = $fieldData;
+        }
+
+        $config->setData('groups', $groups);
+    }
+
+    /** @param array<string, string> $values */
+    private function assertEnabledFormsCanBeDisabled(array $values, ?WebsiteInterface $website): void
+    {
+        foreach (Config::FORM_PATHS as $path) {
+            if ($values[$path] !== '1') {
+                continue;
+            }
+
+            $scope = $website === null ? ScopeConfigInterface::SCOPE_TYPE_DEFAULT : ScopeInterface::SCOPE_WEBSITES;
+            $scopeCode = $website === null ? null : (string) $website->getCode();
+            if ($this->settingChecker->isReadOnly($path, $scope, $scopeCode)) {
+                throw new LocalizedException(__(
+                    'Private Captcha settings test failed, but an enabled form is locked by deployed configuration. '
+                    . 'The configuration was not saved.'
+                ));
+            }
         }
     }
 
@@ -294,9 +376,9 @@ class ConfigSaveValidator
             }
 
             $inherit = false;
-            $directValue = $scopeConfig->getConfigDataValue($path, $inherit);
+            $scopeConfig->getConfigDataValue($path, $inherit);
 
-            return $inherit ? $defaultValue : $this->toString($directValue);
+            return $inherit ? $defaultValue : $this->getCurrentValue($path, $scope, $scopeCode);
         }
 
         $websiteCode = $scopeCode;

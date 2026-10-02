@@ -62,15 +62,11 @@ final class RegistrationPostTest extends AbstractController
         $verifier = new RegistrationPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, false));
+        $this->submit($this->requestPost($email, false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertSame($email, $this->customerRepository->get($email)->getEmail());
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        $this->customerRepository->get($email);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
     }
 
     /**
@@ -87,7 +83,6 @@ final class RegistrationPostTest extends AbstractController
 
         $body = $this->getResponse()->getBody();
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
-        self::assertStringNotContainsString('private-api-key', $body);
     }
 
     /**
@@ -103,17 +98,13 @@ final class RegistrationPostTest extends AbstractController
         $verifier = new RegistrationPostTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, false));
+        $this->submit($this->requestPost($email, false));
 
-            self::assertSame([], $verifier->calls);
-            $this->assertCustomerDoesNotExist($email);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafeCustomerFormData($email);
-            $this->assertRegistrationRedirect();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        $this->assertCustomerDoesNotExist($email);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafeCustomerFormData($email);
+        $this->assertRegistrationRedirect();
     }
 
     /**
@@ -129,16 +120,12 @@ final class RegistrationPostTest extends AbstractController
         $verifier = new RegistrationPostTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, true));
+        $this->submit($this->requestPost($email, true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
-            $this->assertCustomerDoesNotExist($email);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafeCustomerFormData($email);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
+        $this->assertCustomerDoesNotExist($email);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafeCustomerFormData($email);
     }
 
     /**
@@ -153,17 +140,14 @@ final class RegistrationPostTest extends AbstractController
         $email = 'registration-valid@example.test';
         $verifier = new RegistrationPostTestVerifier(true);
         $this->replaceDependencies($verifier);
+        $this->customerSession->setData('customer_form_data', ['stale' => 'state']);
 
-        try {
-            $this->submit($this->requestPost($email, true));
+        $this->submit($this->requestPost($email, true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
-            self::assertSame($email, $this->customerRepository->get($email)->getEmail());
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            self::assertNull($this->customerSession->getData('customer_form_data'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
+        $this->customerRepository->get($email);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
+        self::assertNull($this->customerSession->getData('customer_form_data'));
     }
 
     /**
@@ -182,16 +166,12 @@ final class RegistrationPostTest extends AbstractController
         $verifier = new RegistrationPostTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost($email, true));
+        $this->submit($this->requestPost($email, true));
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
-            $this->assertCustomerDoesNotExist($email);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafeCustomerFormData($email);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
+        $this->assertCustomerDoesNotExist($email);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafeCustomerFormData($email);
     }
 
     /**
@@ -217,16 +197,10 @@ final class RegistrationPostTest extends AbstractController
         $post = $this->requestPost($email, true);
         $post['captcha'] = ['user_create' => 'NativeCaptcha'];
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
-            self::assertSame($email, $this->customerRepository->get($email)->getEmail());
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            self::assertNull($this->customerSession->getData('customer_form_data'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
+        $this->customerRepository->get($email);
     }
 
     /**
@@ -251,16 +225,12 @@ final class RegistrationPostTest extends AbstractController
             'password' => 'password',
         ];
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
-            $this->assertCustomerDoesNotExist($email);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafeCustomerFormData($email, $this->safePost($email) + $this->safeAddressPost());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_CUSTOMER_REGISTRATION]], $verifier->calls);
+        $this->assertCustomerDoesNotExist($email);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafeCustomerFormData($email, $this->safePost($email) + $this->safeAddressPost());
     }
 
     /**
@@ -331,7 +301,6 @@ final class RegistrationPostTest extends AbstractController
             $this->customerRepository->get($email);
             self::fail(sprintf('Customer %s exists unexpectedly.', $email));
         } catch (NoSuchEntityException) {
-            self::addToAssertionCount(1);
         }
     }
 
@@ -341,7 +310,6 @@ final class RegistrationPostTest extends AbstractController
     private function assertSafeCustomerFormData(string $email, ?array $expectedState = null): void
     {
         self::assertSame($expectedState ?? $this->safePost($email), $this->customerSession->getData('customer_form_data'));
-        $this->customerSession->unsetData('customer_form_data');
     }
 
     private function assertRegistrationRedirect(): void

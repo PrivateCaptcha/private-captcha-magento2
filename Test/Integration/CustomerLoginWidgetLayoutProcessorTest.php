@@ -17,6 +17,7 @@ final class CustomerLoginWidgetLayoutProcessorTest extends TestCase
      * @magentoConfigFixture current_website private_captcha/credentials/site_key public-site-key
      * @magentoConfigFixture current_website private_captcha/credentials/api_key private-api-key
      * @magentoConfigFixture current_website private_captcha/protected_forms/customer_login 1
+     * @magentoConfigFixture current_store private_captcha/advanced/theme dark
      */
     public function testEnabledLoginAddsOneUniquePublicWidgetToEveryAjaxSurface(): void
     {
@@ -40,19 +41,27 @@ final class CustomerLoginWidgetLayoutProcessorTest extends TestCase
             'private-captcha-login-billing',
         ], array_column($components, 'requestMarker'));
         self::assertCount(4, array_unique(array_column(array_column($components, 'widget'), 'id')));
-        foreach ($components as $component) {
-            self::assertSame(
-                'PrivateCaptcha_PrivateCaptcha/js/view/ajax-login-widget',
-                $component['component']
-            );
-            self::assertSame('additional-login-form-fields', $component['displayArea']);
-            self::assertSame('privateCaptchaMarker', $component['markerField']);
-            self::assertSame('public-site-key', $component['widget']['site_key']);
-            self::assertSame(Config::SOLUTION_FIELD, $component['widget']['solution_field']);
-            self::assertSame(Config::DEFAULT_SCRIPT_URL, $component['widget']['script_url']);
-            self::assertArrayNotHasKey('api_key', $component['widget']);
-            self::assertArrayNotHasKey('solution', $component['widget']);
-        }
+        self::assertSame(array_fill(0, 4, [
+            'component' => 'PrivateCaptcha_PrivateCaptcha/js/view/ajax-login-widget',
+            'displayArea' => 'additional-login-form-fields',
+            'markerField' => 'privateCaptchaMarker',
+            'siteKey' => 'public-site-key',
+            'solutionField' => Config::SOLUTION_FIELD,
+            'scriptUrl' => Config::DEFAULT_SCRIPT_URL,
+            'theme' => 'dark',
+            'hasApiKey' => false,
+            'hasSolution' => false,
+        ]), array_map(static fn (array $component): array => [
+            'component' => $component['component'],
+            'displayArea' => $component['displayArea'],
+            'markerField' => $component['markerField'],
+            'siteKey' => $component['widget']['site_key'],
+            'solutionField' => $component['widget']['solution_field'],
+            'scriptUrl' => $component['widget']['script_url'],
+            'theme' => $component['widget']['theme'],
+            'hasApiKey' => array_key_exists('api_key', $component['widget']),
+            'hasSolution' => array_key_exists('solution', $component['widget']),
+        ], $components));
     }
 
     /**

@@ -14,10 +14,7 @@ use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config as PrivateCaptchaConfig;
 use PrivateCaptcha\PrivateCaptcha\Model\Config\Coexistence;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
-
-require_once dirname(__DIR__, 4) . '/Model/CustomDomain.php';
-require_once dirname(__DIR__, 4) . '/Model/Config.php';
-require_once dirname(__DIR__, 4) . '/Model/Config/Coexistence.php';
+use Psr\Log\LoggerInterface;
 
 final class CoexistenceTest extends TestCase
 {
@@ -65,9 +62,6 @@ final class CoexistenceTest extends TestCase
         self::assertSame([], $coexistence->getOverlaps('website-b'));
     }
 
-    /**
-     * @dataProvider requiredRecaptchaModuleProvider
-     */
     #[DataProvider('requiredRecaptchaModuleProvider')]
     public function testDoesNotReportRecaptchaWhenARequiredModuleIsDisabled(string $module): void
     {
@@ -214,7 +208,8 @@ final class CoexistenceTest extends TestCase
         $privateCaptchaConfig = new PrivateCaptchaConfig(
             $scopeConfig,
             $this->createStub(StoreManagerInterface::class),
-            new CustomDomain()
+            new CustomDomain(),
+            $this->createStub(LoggerInterface::class)
         );
 
         return new Coexistence($scopeConfig, $moduleManager, $authorization, $privateCaptchaConfig);

@@ -11,8 +11,6 @@ use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\Validation\ProtectedActionResolver;
 
-require_once dirname(__DIR__, 4) . '/Model/Validation/ProtectedActionResolver.php';
-
 final class ProtectedActionResolverTest extends TestCase
 {
     public function testResolvesAnInterceptorSubclassWithoutUsingTheRouteName(): void

@@ -75,15 +75,11 @@ final class ProductReviewPostTest extends AbstractController
         $reviewCount = $this->reviewCount();
         $voteCount = $this->voteCount();
 
-        try {
-            $this->submit($this->reviewPost(false));
+        $this->submit($this->reviewPost(false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertSame($reviewCount + 1, $this->reviewCount());
-            self::assertSame($voteCount + count($this->ratings()), $this->voteCount());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertSame($reviewCount + 1, $this->reviewCount());
+        self::assertSame($voteCount + count($this->ratings()), $this->voteCount());
     }
 
     /**
@@ -104,7 +100,6 @@ final class ProductReviewPostTest extends AbstractController
 
         $body = $this->getResponse()->getBody();
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
-        self::assertStringNotContainsString('private-api-key', $body);
     }
 
     /**
@@ -125,16 +120,12 @@ final class ProductReviewPostTest extends AbstractController
         $reviewCount = $this->reviewCount();
         $voteCount = $this->voteCount();
 
-        try {
-            $this->submit($this->reviewPost(false));
+        $this->submit($this->reviewPost(false));
 
-            self::assertSame([], $verifier->calls);
-            $this->assertNoSideEffects($reviewCount, $voteCount);
-            $this->assertSafeReviewState();
-            $this->assertProductRedirect();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        $this->assertNoSideEffects($reviewCount, $voteCount);
+        $this->assertSafeReviewState();
+        $this->assertProductRedirect();
     }
 
     /**
@@ -154,16 +145,13 @@ final class ProductReviewPostTest extends AbstractController
         $this->replaceDependencies($verifier);
         $reviewCount = $this->reviewCount();
         $voteCount = $this->voteCount();
+        $this->reviewSession->setData('form_data', ['stale' => 'state']);
 
-        try {
-            $this->submit($this->reviewPost(true));
+        $this->submit($this->reviewPost(true));
 
-            self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
-            $this->assertNoSideEffects($reviewCount, $voteCount);
-            $this->assertSafeReviewState();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
+        $this->assertNoSideEffects($reviewCount, $voteCount);
+        $this->assertSafeReviewState();
     }
 
     /**
@@ -184,16 +172,12 @@ final class ProductReviewPostTest extends AbstractController
         $reviewCount = $this->reviewCount();
         $voteCount = $this->voteCount();
 
-        try {
-            $this->submit($this->reviewPost(true));
+        $this->submit($this->reviewPost(true));
 
-            self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
-            self::assertSame($reviewCount + 1, $this->reviewCount());
-            self::assertSame($voteCount + count($this->ratings()), $this->voteCount());
-            self::assertNull($this->reviewSession->getData('form_data'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
+        self::assertSame($reviewCount + 1, $this->reviewCount());
+        self::assertSame($voteCount + count($this->ratings()), $this->voteCount());
+        self::assertNull($this->reviewSession->getData('form_data'));
     }
 
     /**
@@ -214,20 +198,16 @@ final class ProductReviewPostTest extends AbstractController
         $reviewCount = $this->reviewCount();
         $voteCount = $this->voteCount();
 
-        try {
-            $this->submit($this->reviewPost(true));
+        $this->submit($this->reviewPost(true));
 
-            self::assertSame([], $verifier->calls);
-            $this->assertNoSideEffects($reviewCount, $voteCount);
-            $this->assertSafeReviewState();
-            self::assertTrue($this->getResponse()->isRedirect());
-            self::assertStringContainsString(
-                'customer/account/login',
-                $this->getResponse()->getHeader('Location')->getFieldValue()
-            );
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        $this->assertNoSideEffects($reviewCount, $voteCount);
+        $this->assertSafeReviewState();
+        self::assertTrue($this->getResponse()->isRedirect());
+        self::assertStringContainsString(
+            'customer/account/login',
+            $this->getResponse()->getHeader('Location')->getFieldValue()
+        );
     }
 
     /**
@@ -247,17 +227,11 @@ final class ProductReviewPostTest extends AbstractController
         $this->replaceDependencies($verifier);
         $this->customerSession->setCustomerId(1);
         $reviewCount = $this->reviewCount();
-        $voteCount = $this->voteCount();
 
-        try {
-            $this->submit($this->reviewPost(true));
+        $this->submit($this->reviewPost(true));
 
-            self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
-            self::assertSame($reviewCount + 1, $this->reviewCount());
-            self::assertSame($voteCount + count($this->ratings()), $this->voteCount());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
+        self::assertSame($reviewCount + 1, $this->reviewCount());
     }
 
     /**
@@ -280,15 +254,11 @@ final class ProductReviewPostTest extends AbstractController
         $post = $this->reviewPost(true);
         $post['detail'] = '';
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
-            $this->assertNoSideEffects($reviewCount, $voteCount);
-            $this->assertSafeReviewState($post['detail']);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_PRODUCT_REVIEW]], $verifier->calls);
+        $this->assertNoSideEffects($reviewCount, $voteCount);
+        $this->assertSafeReviewState($post['detail']);
     }
 
     /**

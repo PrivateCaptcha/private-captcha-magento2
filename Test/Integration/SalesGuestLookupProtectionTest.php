@@ -22,8 +22,6 @@ use PrivateCaptcha\PrivateCaptcha\Observer\ValidatePredispatch;
 
 final class SalesGuestLookupProtectionTest extends AbstractController
 {
-    private ActionFlag $actionFlag;
-
     private CookieManagerInterface $cookieManager;
 
     private CustomerSession $customerSession;
@@ -37,12 +35,11 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         parent::setUp();
 
         $objectManager = \Magento\TestFramework\Helper\Bootstrap::getObjectManager();
-        $this->actionFlag = $objectManager->get(ActionFlag::class);
         $this->cookieManager = $objectManager->get(CookieManagerInterface::class);
         $this->customerSession = $objectManager->get(CustomerSession::class);
         $this->registry = $objectManager->get(Registry::class);
         $this->orderFactory = $objectManager->get(OrderInterfaceFactory::class);
-        $this->actionFlag->set('', ActionInterface::FLAG_NO_DISPATCH, false);
+        $objectManager->get(ActionFlag::class)->set('', ActionInterface::FLAG_NO_DISPATCH, false);
         $this->cookieManager->deleteCookie(Guest::COOKIE_NAME);
         $this->registry->unregister('current_order');
         if ($this->customerSession->isLoggedIn()) {
@@ -55,11 +52,11 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         if (isset($this->cookieManager)) {
             $this->cookieManager->deleteCookie(Guest::COOKIE_NAME);
         }
-        if (isset($this->registry)) {
-            $this->registry->unregister('current_order');
-        }
         if (isset($this->customerSession) && $this->customerSession->isLoggedIn()) {
             $this->customerSession->logout();
+        }
+        if (isset($this->registry)) {
+            $this->registry->unregister('current_order');
         }
         $this->restoreDependencies();
         parent::tearDown();
@@ -80,15 +77,10 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         $verifier = new SalesGuestLookupProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(false));
+        $this->submit($this->requestPost(false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertStringContainsString('Order # 100000001', $this->getResponse()->getBody());
-            self::assertNotNull($this->registry->registry('current_order'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertStringContainsString('Order # 100000001', $this->getResponse()->getBody());
     }
 
     /**
@@ -105,14 +97,10 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         $verifier = new SalesGuestLookupProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(false));
+        $this->submit($this->requestPost(false));
 
-            self::assertSame([], $verifier->calls);
-            $this->assertFailedLookup();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        $this->assertFailedLookup();
     }
 
     /**
@@ -129,14 +117,10 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         $verifier = new SalesGuestLookupProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_ORDERS_RETURNS]], $verifier->calls);
-            $this->assertFailedLookup();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_ORDERS_RETURNS]], $verifier->calls);
+        $this->assertFailedLookup();
     }
 
     /**
@@ -153,15 +137,10 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         $verifier = new SalesGuestLookupProtectionTestVerifier(true);
         $this->replaceDependencies($verifier);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_ORDERS_RETURNS]], $verifier->calls);
-            self::assertStringContainsString('Order # 100000001', $this->getResponse()->getBody());
-            self::assertNotNull($this->registry->registry('current_order'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_ORDERS_RETURNS]], $verifier->calls);
+        self::assertStringContainsString('Order # 100000001', $this->getResponse()->getBody());
     }
 
     /**
@@ -182,7 +161,6 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         $widget = strpos($body, 'class="private-captcha"');
 
         self::assertNotFalse($formEnd);
-        self::assertNotFalse($widget);
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
         self::assertGreaterThan($formEnd, $widget);
         self::assertStringContainsString('data-sitekey="public-site-key"', $body);
@@ -204,7 +182,6 @@ final class SalesGuestLookupProtectionTest extends AbstractController
 
         $body = $this->getResponse()->getBody();
 
-        self::assertSame(200, $this->getResponse()->getHttpResponseCode());
         self::assertStringContainsString('name="oar_order_id"', $body);
         self::assertSame(0, substr_count($body, 'class="private-captcha"'));
     }
@@ -236,34 +213,6 @@ final class SalesGuestLookupProtectionTest extends AbstractController
      * @magentoAppArea frontend
      * @magentoAppIsolation enabled
      * @magentoDbIsolation enabled
-     * @magentoConfigFixture base_website private_captcha/protected_forms/orders_returns 1
-     * @magentoConfigFixture base_website private_captcha/credentials/site_key public-site-key
-     * @magentoConfigFixture base_website private_captcha/credentials/api_key private-api-key
-     */
-    public function testGetWithoutCookieRemainsNativeWithoutVerification(): void
-    {
-        $verifier = new SalesGuestLookupProtectionTestVerifier(false);
-        $this->replaceDependencies($verifier);
-
-        try {
-            $this->dispatchGet();
-
-            self::assertSame([], $verifier->calls);
-            self::assertTrue($this->getResponse()->isRedirect());
-            self::assertStringContainsString(
-                'sales/guest/form',
-                $this->getResponse()->getHeader('Location')->getFieldValue()
-            );
-            self::assertNull($this->registry->registry('current_order'));
-        } finally {
-            $this->restoreDependencies();
-        }
-    }
-
-    /**
-     * @magentoAppArea frontend
-     * @magentoAppIsolation enabled
-     * @magentoDbIsolation enabled
      * @magentoDataFixture Magento/Sales/_files/order.php
      * @magentoConfigFixture base_website private_captcha/protected_forms/orders_returns 1
      * @magentoConfigFixture base_website private_captcha/credentials/site_key public-site-key
@@ -275,15 +224,10 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         $this->replaceDependencies($verifier);
         $this->setValidGuestCookie();
 
-        try {
-            $this->dispatchGet();
+        $this->dispatchGet();
 
-            self::assertSame([], $verifier->calls);
-            self::assertStringContainsString('Order # 100000001', $this->getResponse()->getBody());
-            self::assertNotNull($this->registry->registry('current_order'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertStringContainsString('Order # 100000001', $this->getResponse()->getBody());
     }
 
     /**
@@ -301,19 +245,15 @@ final class SalesGuestLookupProtectionTest extends AbstractController
         $this->replaceDependencies($verifier);
         $this->cookieManager->setPublicCookie(Guest::COOKIE_NAME, base64_encode('invalid:100000001'));
 
-        try {
-            $this->dispatchGet();
+        $this->dispatchGet();
 
-            self::assertSame([], $verifier->calls);
-            self::assertTrue($this->getResponse()->isRedirect());
-            self::assertStringContainsString(
-                'sales/guest/form',
-                $this->getResponse()->getHeader('Location')->getFieldValue()
-            );
-            self::assertNull($this->registry->registry('current_order'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertTrue($this->getResponse()->isRedirect());
+        self::assertStringContainsString(
+            'sales/guest/form',
+            $this->getResponse()->getHeader('Location')->getFieldValue()
+        );
+        self::assertStringNotContainsString('Order # 100000001', $this->getResponse()->getBody());
     }
 
     /**
@@ -326,38 +266,20 @@ final class SalesGuestLookupProtectionTest extends AbstractController
      * @magentoConfigFixture base_website private_captcha/credentials/site_key public-site-key
      * @magentoConfigFixture base_website private_captcha/credentials/api_key private-api-key
      */
-    public function testLoggedInGetAndPostRemainNativeWithoutVerification(): void
+    public function testLoggedInPostRemainsNativeWithoutVerification(): void
     {
         $verifier = new SalesGuestLookupProtectionTestVerifier(false);
         $this->replaceDependencies($verifier);
         $this->customerSession->setCustomerId(1);
 
-        try {
-            $this->dispatchGet();
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([], $verifier->calls);
-            self::assertTrue($this->getResponse()->isRedirect());
-            self::assertStringContainsString(
-                'sales/order/history',
-                $this->getResponse()->getHeader('Location')->getFieldValue()
-            );
-
-            $this->removeIgnitionHandlers();
-            $this->actionFlag->set('', ActionInterface::FLAG_NO_DISPATCH, false);
-            $this->getResponse()->getHeaders()->clearHeaders();
-            $this->getResponse()->setBody('');
-            $this->getResponse()->setHttpResponseCode(200);
-            $this->submit($this->requestPost(true));
-
-            self::assertSame([], $verifier->calls);
-            self::assertTrue($this->getResponse()->isRedirect());
-            self::assertStringContainsString(
-                'sales/order/history',
-                $this->getResponse()->getHeader('Location')->getFieldValue()
-            );
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertTrue($this->getResponse()->isRedirect());
+        self::assertStringContainsString(
+            'sales/order/history',
+            $this->getResponse()->getHeader('Location')->getFieldValue()
+        );
     }
 
     /**

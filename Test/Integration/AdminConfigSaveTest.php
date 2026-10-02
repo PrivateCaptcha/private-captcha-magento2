@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace PrivateCaptcha\PrivateCaptcha\Test\Integration;
 
+use Magento\Config\Console\Command\EmulatedAdminhtmlAreaProcessor;
 use Magento\Config\Model\Config\Factory as ConfigFactory;
 use Magento\Framework\App\Config\ReinitableConfigInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\Config\Storage\WriterInterface;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\ObjectManagerInterface;
@@ -15,6 +17,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use Magento\TestFramework\Fixture\Config as ConfigFixture;
 use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
+use PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ValidateConfigSave;
 
 final class AdminConfigSaveTest extends TestCase
 {
@@ -27,10 +30,26 @@ final class AdminConfigSaveTest extends TestCase
 
     /**
      * @magentoAppIsolation enabled
+     */
+    public function testEmulatedAdminhtmlConfigSaveUsesLazyPrivateCaptchaHandler(): void
+    {
+        $this->objectManager->get(EmulatedAdminhtmlAreaProcessor::class)->process(function (): void {
+            $plugin = $this->objectManager->create(ValidateConfigSave::class);
+            $handler = (new \ReflectionProperty(ValidateConfigSave::class, 'handler'))->getValue($plugin);
+            $subject = $this->objectManager->get(ConfigFactory::class)->create(['data' => ['section' => 'system']]);
+            $plugin->aroundSave($subject, static fn () => $subject);
+            $plugin->afterSave($subject, $subject);
+
+            self::assertNull((new \ReflectionProperty($handler, '_subject'))->getValue($handler));
+        });
+    }
+
+    /**
+     * @magentoAppIsolation enabled
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
      */
-    public function testSameRequestCredentialsAndEnablementSaveTogether(): void
+    public function testCredentialsArePersistedAndApiKeyIsEncrypted(): void
     {
         $websiteId = $this->getCurrentWebsiteId();
         $this->save($websiteId, [
@@ -40,7 +59,6 @@ final class AdminConfigSaveTest extends TestCase
                     'api_key' => ['value' => 'api-key'],
                 ],
             ],
-            'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
         ]);
 
         $this->reinitializeConfig();
@@ -55,10 +73,6 @@ final class AdminConfigSaveTest extends TestCase
             'api-key',
             $scopeConfig->getValue(Config::PATH_API_KEY, ScopeInterface::SCOPE_WEBSITE, $websiteCode)
         );
-        self::assertTrue(
-            $scopeConfig->isSetFlag('private_captcha/protected_forms/contact_form', ScopeInterface::SCOPE_WEBSITE, $websiteCode)
-        );
-
         $resource = $this->objectManager->get(ResourceConnection::class);
         $connection = $resource->getConnection();
         $storedApiKey = $connection->fetchOne(
@@ -68,7 +82,7 @@ final class AdminConfigSaveTest extends TestCase
                 ->where('scope = ?', ScopeInterface::SCOPE_WEBSITES)
                 ->where('scope_id = ?', $websiteId)
         );
-        self::assertIsString($storedApiKey);
+        self::assertNotEmpty($storedApiKey);
         self::assertNotSame('api-key', $storedApiKey);
     }
 
@@ -77,24 +91,136 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
      */
-    public function testMissingCredentialRejectsTheEntireSave(): void
+    public function testInvalidCredentialUpdateDisablesPreviouslyEnabledForms(): void
     {
         $websiteId = $this->getCurrentWebsiteId();
+        $writer = $this->objectManager->get(WriterInterface::class);
+        $writer->save(
+            Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+            '1',
+            ScopeInterface::SCOPE_WEBSITES,
+            $websiteId
+        );
+        $writer->save(
+            Config::FORM_PATHS[Config::FORM_CONTACT],
+            '1',
+            ScopeInterface::SCOPE_WEBSITES,
+            $websiteId
+        );
+        $this->reinitializeConfig();
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $websiteCode = $this->getCurrentWebsiteCode();
 
-        try {
-            $this->save($websiteId, [
-                'credentials' => ['fields' => ['site_key' => ['value' => 'site-key']]],
-                'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
-            ]);
-            self::fail('Expected missing API Key to reject the save.');
-        } catch (LocalizedException) {
-        }
+        $this->save($websiteId, [
+            'credentials' => [
+                'fields' => [
+                    'site_key' => ['value' => 'invalid-site-key'],
+                    'api_key' => ['value' => 'invalid-api-key'],
+                ],
+            ],
+            'protected_forms' => [
+                'fields' => [
+                    'customer_login' => ['value' => '1'],
+                    'contact_form' => ['value' => '1'],
+                ],
+            ],
+        ]);
+
+        $this->reinitializeConfig();
+
+        self::assertSame(
+            'invalid-site-key',
+            $scopeConfig->getValue(Config::PATH_SITE_KEY, ScopeInterface::SCOPE_WEBSITE, $websiteCode)
+        );
+        self::assertSame(
+            'invalid-api-key',
+            $scopeConfig->getValue(Config::PATH_API_KEY, ScopeInterface::SCOPE_WEBSITE, $websiteCode)
+        );
+        self::assertFalse(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+        self::assertFalse(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CONTACT],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     * @magentoAppArea adminhtml
+     * @magentoDbIsolation enabled
+     */
+    public function testInvalidDefaultCredentialsDisableWebsiteProtection(): void
+    {
+        $websiteId = $this->getCurrentWebsiteId();
+        $writer = $this->objectManager->get(WriterInterface::class);
+        $writer->save(
+            Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+            '1',
+            ScopeInterface::SCOPE_WEBSITES,
+            $websiteId
+        );
+        $this->reinitializeConfig();
+        $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
+        $websiteCode = $this->getCurrentWebsiteCode();
+        self::assertTrue(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+
+        $this->save(null, [
+            'credentials' => [
+                'fields' => [
+                    'site_key' => ['value' => 'invalid-default-site-key'],
+                    'api_key' => ['value' => 'invalid-default-api-key'],
+                ],
+            ],
+            'protected_forms' => ['fields' => ['customer_login' => ['value' => '0']]],
+        ]);
+
+        $this->reinitializeConfig();
+        self::assertSame(
+            'invalid-default-site-key',
+            $scopeConfig->getValue(Config::PATH_SITE_KEY)
+        );
+        self::assertFalse(
+            $scopeConfig->isSetFlag(
+                Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
+                ScopeInterface::SCOPE_WEBSITE,
+                $websiteCode
+            )
+        );
+    }
+
+    /**
+     * @magentoAppIsolation enabled
+     * @magentoAppArea adminhtml
+     * @magentoDbIsolation enabled
+     */
+    public function testMissingCredentialDisablesEnabledForm(): void
+    {
+        $websiteId = $this->getCurrentWebsiteId();
+        $this->save($websiteId, [
+            'credentials' => ['fields' => ['site_key' => ['value' => 'site-key']]],
+            'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
+        ]);
 
         $this->reinitializeConfig();
         $scopeConfig = $this->objectManager->get(ScopeConfigInterface::class);
         $websiteCode = $this->getCurrentWebsiteCode();
 
-        self::assertNull(
+        self::assertSame(
+            'site-key',
             $scopeConfig->getValue('private_captcha/credentials/site_key', ScopeInterface::SCOPE_WEBSITE, $websiteCode)
         );
         self::assertFalse(
@@ -106,8 +232,6 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppIsolation enabled
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
-     * @magentoConfigFixture default private_captcha/credentials/site_key default-site-key
-     * @magentoConfigFixture default private_captcha/credentials/api_key default-api-key
      */
     #[ConfigFixture('private_captcha/credentials/site_key', 'default-site-key')]
     #[ConfigFixture('private_captcha/credentials/api_key', 'default-api-key')]
@@ -150,46 +274,6 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppIsolation enabled
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
-     * @magentoConfigFixture default private_captcha/credentials/site_key default-site-key
-     * @magentoConfigFixture default private_captcha/credentials/api_key default-api-key
-     * @magentoConfigFixture current_website private_captcha/protected_forms/contact_form 1
-     */
-    #[ConfigFixture('private_captcha/credentials/site_key', 'default-site-key')]
-    #[ConfigFixture('private_captcha/credentials/api_key', 'default-api-key')]
-    #[ConfigFixture('private_captcha/protected_forms/contact_form', '1', ScopeInterface::SCOPE_WEBSITE, 'base')]
-    public function testDefaultCredentialRemovalIsRejectedForAnInheritingEnabledWebsite(): void
-    {
-        $this->save(null, [
-            'credentials' => [
-                'fields' => [
-                    'site_key' => ['value' => 'default-site-key'],
-                    'api_key' => ['value' => 'default-api-key'],
-                ],
-            ],
-        ]);
-        $this->save($this->getCurrentWebsiteId(), [
-            'protected_forms' => ['fields' => ['contact_form' => ['value' => '1']]],
-        ]);
-
-        try {
-            $this->save(null, [
-                'credentials' => ['fields' => ['site_key' => ['value' => '']]],
-            ]);
-            self::fail('Expected removing the inherited Site Key to reject the save.');
-        } catch (LocalizedException) {
-        }
-
-        $this->reinitializeConfig();
-        self::assertSame(
-            'default-site-key',
-            $this->objectManager->get(ScopeConfigInterface::class)->getValue('private_captcha/credentials/site_key')
-        );
-    }
-
-    /**
-     * @magentoAppIsolation enabled
-     * @magentoAppArea adminhtml
-     * @magentoDbIsolation enabled
      */
     public function testInvalidCustomDomainRejectsTheEntireSave(): void
     {
@@ -224,12 +308,13 @@ final class AdminConfigSaveTest extends TestCase
      * @magentoAppArea adminhtml
      * @magentoDbIsolation enabled
      */
-    public function testStoreScopedLanguageAndCustomStylesSaveTogether(): void
+    public function testStoreScopedPresentationSettingsSaveTogether(): void
     {
         $store = $this->objectManager->get(StoreManagerInterface::class)->getStore();
         $this->save($this->getCurrentWebsiteId(), [
             'advanced' => [
                 'fields' => [
+                    'theme' => ['value' => 'light'],
                     'language' => ['value' => 'en'],
                     'custom_styles' => ['value' => 'website-styles'],
                 ],
@@ -240,6 +325,7 @@ final class AdminConfigSaveTest extends TestCase
         $this->save(null, [
             'advanced' => [
                 'fields' => [
+                    'theme' => ['value' => 'dark'],
                     'language' => ['value' => 'de'],
                     'custom_styles' => ['value' => '--private-captcha-accent: teal;'],
                 ],
@@ -249,12 +335,14 @@ final class AdminConfigSaveTest extends TestCase
         $this->reinitializeConfig();
         $config = $this->objectManager->get(Config::class);
 
+        self::assertSame('dark', $config->getTheme((int) $store->getId()));
         self::assertSame('de', $config->getLanguage((int) $store->getId()));
         self::assertSame('--private-captcha-accent: teal;', $config->getCustomStyles((int) $store->getId()));
 
         $this->save(null, [
             'advanced' => [
                 'fields' => [
+                    'theme' => ['value' => 'ignored', 'inherit' => '1'],
                     'language' => ['value' => 'ignored', 'inherit' => '1'],
                     'custom_styles' => ['value' => 'ignored', 'inherit' => '1'],
                 ],
@@ -262,6 +350,7 @@ final class AdminConfigSaveTest extends TestCase
         ], (int) $store->getId());
 
         $this->reinitializeConfig();
+        self::assertSame('light', $config->getTheme((int) $store->getId()));
         self::assertSame('en', $config->getLanguage((int) $store->getId()));
         self::assertSame('website-styles', $config->getCustomStyles((int) $store->getId()));
     }

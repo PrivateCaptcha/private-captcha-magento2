@@ -11,3 +11,4 @@
 /.gitattributes export-ignore
 .github/ export-ignore
 scripts/ export-ignore
+.gitignore export-ignore

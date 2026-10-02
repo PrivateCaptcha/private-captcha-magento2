@@ -3,6 +3,11 @@
          xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="PrivateCaptcha\PrivateCaptcha\Model\Validation\VerifierInterface"
                 type="PrivateCaptcha\PrivateCaptcha\Model\Validation\SdkVerifier"/>
+    <type name="PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ValidateConfigSave">
+        <arguments>
+            <argument name="handler" xsi:type="object">PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveHandler\Proxy</argument>
+        </arguments>
+    </type>
     <type name="Magento\Config\Model\Config\TypePool">
         <arguments>
             <argument name="sensitive" xsi:type="array">

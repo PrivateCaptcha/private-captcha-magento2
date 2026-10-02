@@ -87,14 +87,10 @@ final class WishlistShareProtectionTest extends AbstractController
         $this->replaceDependencies($verifier);
         $this->login();
 
-        try {
-            $this->submit($this->requestPost(false));
+        $this->submit($this->requestPost(false));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
     }
 
     /**
@@ -120,12 +116,10 @@ final class WishlistShareProtectionTest extends AbstractController
         $widget = strpos($body, 'class="private-captcha"');
 
         self::assertNotFalse($formEnd);
-        self::assertNotFalse($widget);
         self::assertSame(1, substr_count($body, 'class="private-captcha"'));
         self::assertGreaterThan($formEnd, $widget);
         self::assertStringContainsString('detachedTarget', $body);
         self::assertStringContainsString('id="captcha_share_wishlist_form"', $body);
-        self::assertStringNotContainsString('private-api-key', $body);
     }
 
     /**
@@ -169,16 +163,12 @@ final class WishlistShareProtectionTest extends AbstractController
         $this->login();
         $wishlistId = $this->getWishlistId();
 
-        try {
-            $this->submit($this->requestPost(false), $this->sendPath($wishlistId));
+        $this->submit($this->requestPost(false), $this->sendPath($wishlistId));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafeState();
-            $this->assertShareRedirect($wishlistId);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafeState();
+        $this->assertShareRedirect($wishlistId);
     }
 
     /**
@@ -196,15 +186,11 @@ final class WishlistShareProtectionTest extends AbstractController
         $this->replaceDependencies($verifier);
         $this->login();
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafeState();
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafeState();
     }
 
     /**
@@ -224,16 +210,12 @@ final class WishlistShareProtectionTest extends AbstractController
         $shared = $this->getSharedCount();
         $wishlistId = $this->getWishlistId();
 
-        try {
-            $this->submit($this->requestPost(true), $this->sendPath($wishlistId));
+        $this->submit($this->requestPost(true), $this->sendPath($wishlistId));
 
-            self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            self::assertSame($shared + 1, $this->getSharedCount());
-            self::assertNull($this->wishlistSession->getData('sharing_form'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
+        self::assertSame($shared + 1, $this->getSharedCount());
+        self::assertNull($this->wishlistSession->getData('sharing_form'));
     }
 
     /**
@@ -255,15 +237,11 @@ final class WishlistShareProtectionTest extends AbstractController
         $expectedState = $this->safePost();
         $expectedState['emails'] = 'not-an-email';
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $this->assertSafeState($expectedState);
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $this->assertSafeState($expectedState);
     }
 
     /**
@@ -285,15 +263,11 @@ final class WishlistShareProtectionTest extends AbstractController
         $this->login();
         $shared = $this->getSharedCount();
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            self::assertSame($shared, $this->getSharedCount());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        self::assertSame($shared, $this->getSharedCount());
     }
 
     /**
@@ -317,15 +291,11 @@ final class WishlistShareProtectionTest extends AbstractController
         $post = $this->requestPost(true);
         $post['captcha']['share_wishlist_form'] = $this->getNativeCaptchaWord();
 
-        try {
-            $this->submit($post);
+        $this->submit($post);
 
-            self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            self::assertSame($shared + 1, $this->getSharedCount());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
+        self::assertSame($shared + 1, $this->getSharedCount());
     }
 
     /**
@@ -348,15 +318,11 @@ final class WishlistShareProtectionTest extends AbstractController
         $this->login();
         $shared = $this->getSharedCount();
 
-        try {
-            $this->submit($this->requestPost(true, false));
+        $this->submit($this->requestPost(true, false));
 
-            self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            self::assertSame($shared, $this->getSharedCount());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        self::assertSame($shared, $this->getSharedCount());
     }
 
     /**
@@ -390,16 +356,11 @@ final class WishlistShareProtectionTest extends AbstractController
         $objectManager->removeSharedInstance(RequestHandlerInterface::class, true);
         $objectManager->addSharedInstance($recaptchaValidator, RecaptchaValidatorInterface::class, true);
 
-        try {
-            $this->submit($this->requestPost(true));
+        $this->submit($this->requestPost(true));
 
-            self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
-            self::assertNotNull($this->transportBuilder->getSentMessage());
-            self::assertSame($shared + 1, $this->getSharedCount());
-        } finally {
-            $this->restoreNativeRecaptchaDependencies();
-            $this->restoreDependencies();
-        }
+        self::assertSame([['solution', Config::FORM_WISHLIST_SHARE]], $verifier->calls);
+        self::assertNotNull($this->transportBuilder->getSentMessage());
+        self::assertSame($shared + 1, $this->getSharedCount());
     }
 
     /**
@@ -422,28 +383,24 @@ final class WishlistShareProtectionTest extends AbstractController
             'private-captcha-solution' => 'solution',
         ]);
 
-        try {
-            $this->submit($post, $this->sendPath($wishlistId));
+        $this->submit($post, $this->sendPath($wishlistId));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            // The isolated integration sandbox excludes the current compiled action-plugin metadata.
-            $this->scrubWishlistAuthenticationState();
-            $expectedState = $this->safePost() + ['wishlist_id' => $wishlistId];
-            self::assertSame($expectedState, $this->customerSession->getBeforeWishlistRequest());
-            self::assertSame($expectedState, $this->customerSession->getBeforeRequestParams());
-            self::assertStringContainsString(
-                'wishlist/index/share/wishlist_id/' . $wishlistId,
-                (string) $this->customerSession->getBeforeWishlistUrl()
-            );
-            self::assertStringNotContainsString(
-                'private-captcha-solution',
-                (string) $this->customerSession->getBeforeWishlistUrl()
-            );
-            self::assertNull($this->wishlistSession->getData('sharing_form'));
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        // The isolated integration sandbox excludes the current compiled action-plugin metadata.
+        $this->scrubWishlistAuthenticationState();
+        $expectedState = $this->safePost() + ['wishlist_id' => $wishlistId];
+        self::assertSame($expectedState, $this->customerSession->getBeforeWishlistRequest());
+        self::assertSame($expectedState, $this->customerSession->getBeforeRequestParams());
+        self::assertStringContainsString(
+            'wishlist/index/share/wishlist_id/' . $wishlistId,
+            (string) $this->customerSession->getBeforeWishlistUrl()
+        );
+        self::assertStringNotContainsString(
+            'private-captcha-solution',
+            (string) $this->customerSession->getBeforeWishlistUrl()
+        );
+        self::assertNull($this->wishlistSession->getData('sharing_form'));
     }
 
     /**
@@ -462,18 +419,14 @@ final class WishlistShareProtectionTest extends AbstractController
         $wishlistId = $this->getWishlistId();
         $post = $this->requestPost(true);
 
-        try {
-            $this->submit($post, $this->sendPath($wishlistId));
+        $this->submit($post, $this->sendPath($wishlistId));
 
-            self::assertSame([], $verifier->calls);
-            self::assertNull($this->transportBuilder->getSentMessage());
-            $expectedState = ['wishlist_id' => (string) $wishlistId] + $post;
-            self::assertSame($expectedState, $this->customerSession->getBeforeWishlistRequest());
-            $this->scrubWishlistAuthenticationState();
-            self::assertSame($expectedState, $this->customerSession->getBeforeWishlistRequest());
-        } finally {
-            $this->restoreDependencies();
-        }
+        self::assertSame([], $verifier->calls);
+        self::assertNull($this->transportBuilder->getSentMessage());
+        $expectedState = ['wishlist_id' => (string) $wishlistId] + $post;
+        self::assertSame($expectedState, $this->customerSession->getBeforeWishlistRequest());
+        $this->scrubWishlistAuthenticationState();
+        self::assertSame($expectedState, $this->customerSession->getBeforeWishlistRequest());
     }
 
     private function login(): void

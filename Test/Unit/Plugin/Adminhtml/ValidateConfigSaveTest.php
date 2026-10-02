@@ -9,57 +9,80 @@ use Magento\Config\Model\Config\Factory as ConfigFactory;
 use Magento\Config\Model\Config\Reader\Source\Deployed\SettingChecker;
 use Magento\Framework\App\Cache\TypeListInterface;
 use Magento\Framework\App\Config\ReinitableConfigInterface;
+use Magento\Framework\App\Config\Storage\WriterInterface;
+use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\DB\Adapter\AdapterInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Lock\LockManagerInterface;
+use Magento\Framework\Message\ManagerInterface;
 use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\TestCase;
 use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveValidator;
+use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\ConfigSaveHandler;
+use PrivateCaptcha\PrivateCaptcha\Model\Adminhtml\CurrentSettingsTester;
 use PrivateCaptcha\PrivateCaptcha\Model\Config;
 use PrivateCaptcha\PrivateCaptcha\Model\CustomDomain;
 use PrivateCaptcha\PrivateCaptcha\Plugin\Adminhtml\ValidateConfigSave;
-
-require_once dirname(__DIR__, 4) . '/Model/CustomDomain.php';
-require_once dirname(__DIR__, 4) . '/Model/Config.php';
-require_once dirname(__DIR__, 4) . '/Model/Adminhtml/ConfigSaveValidator.php';
-require_once dirname(__DIR__, 4) . '/Plugin/Adminhtml/ValidateConfigSave.php';
 
 final class ValidateConfigSaveTest extends TestCase
 {
     public function testSuccessfulPrivateCaptchaSaveCleansOnlyAffectedCacheTypes(): void
     {
         $cleanedTypes = [];
-        $cacheTypeList = $this->createMock(TypeListInterface::class);
-        $cacheTypeList->expects(self::exactly(4))
-            ->method('cleanType')
+        $cacheTypeList = $this->createStub(TypeListInterface::class);
+        $cacheTypeList->method('cleanType')
             ->willReturnCallback(static function (string $cacheType) use (&$cleanedTypes): void {
                 $cleanedTypes[] = $cacheType;
             });
 
-        $plugin = new ValidateConfigSave(
+        $plugin = new ValidateConfigSave(new ConfigSaveHandler(
             $this->createValidator(),
             $cacheTypeList,
-            $this->createMock(LockManagerInterface::class)
-        );
+            $this->createMock(LockManagerInterface::class),
+            $this->createStub(ManagerInterface::class),
+            $this->createStub(WriterInterface::class),
+            $this->createResourceConnection()
+        ));
         $subject = $this->createConfigSubject('private_captcha');
 
-        self::assertSame($subject, $plugin->afterSave($subject, $subject));
+        $plugin->afterSave($subject, $subject);
         self::assertSame(['config', 'layout', 'block_html', 'full_page'], $cleanedTypes);
     }
 
-    public function testUnrelatedConfigSaveDoesNotCleanFrontendCaches(): void
+    public function testUnrelatedConfigSaveDoesNotResolvePrivateCaptchaHandler(): void
     {
-        $cacheTypeList = $this->createMock(TypeListInterface::class);
-        $cacheTypeList->expects(self::never())->method('cleanType');
+        $handler = $this->createMock(ConfigSaveHandler::class);
+        $handler->expects(self::never())->method('aroundSave');
+        $handler->expects(self::never())->method('afterSave');
 
-        $plugin = new ValidateConfigSave(
-            $this->createValidator(),
-            $cacheTypeList,
-            $this->createMock(LockManagerInterface::class)
+        $plugin = new ValidateConfigSave($handler);
+        $subject = $this->createConfigSubject('system');
+        $result = $this->createConfigSubject('result');
+        $proceedCalls = 0;
+
+        $plugin->aroundSave(
+            $subject,
+            static function () use (&$proceedCalls, $result): MagentoConfig {
+                $proceedCalls++;
+
+                return $result;
+            }
         );
-        $subject = $this->createConfigSubject('web');
+        self::assertSame(1, $proceedCalls);
+        $plugin->afterSave($subject, $result);
+    }
 
-        self::assertSame($subject, $plugin->afterSave($subject, $subject));
+    public function testUnrelatedConfigSaveRestoresSubjectWhenEarlierPluginReturnsNothing(): void
+    {
+        $handler = $this->createMock(ConfigSaveHandler::class);
+        $handler->expects(self::never())->method('aroundSave');
+        $handler->expects(self::never())->method('afterSave');
+
+        $plugin = new ValidateConfigSave($handler);
+        $subject = $this->createConfigSubject('system');
+
+        self::assertSame($subject, $plugin->afterSave($subject, null));
     }
 
     public function testPrivateCaptchaSaveHoldsTheConfigurationLockUntilSaveCompletes(): void
@@ -76,14 +99,17 @@ final class ValidateConfigSaveTest extends TestCase
         $validator = $this->createValidator($reinitableConfig);
         $reinitableConfig->expects(self::once())->method('reinit');
 
-        $plugin = new ValidateConfigSave(
+        $plugin = new ValidateConfigSave(new ConfigSaveHandler(
             $validator,
             $this->createMock(TypeListInterface::class),
-            $lockManager
-        );
+            $lockManager,
+            $this->createStub(ManagerInterface::class),
+            $this->createStub(WriterInterface::class),
+            $this->createResourceConnection()
+        ));
         $subject = $this->createConfigSubject('private_captcha');
 
-        self::assertSame($subject, $plugin->aroundSave($subject, static fn () => $subject));
+        $plugin->aroundSave($subject, static fn () => $subject);
     }
 
     public function testUnavailableConfigurationLockRejectsTheSave(): void
@@ -98,11 +124,14 @@ final class ValidateConfigSaveTest extends TestCase
         $validator = $this->createValidator($reinitableConfig);
         $reinitableConfig->expects(self::never())->method('reinit');
 
-        $plugin = new ValidateConfigSave(
+        $plugin = new ValidateConfigSave(new ConfigSaveHandler(
             $validator,
             $this->createMock(TypeListInterface::class),
-            $lockManager
-        );
+            $lockManager,
+            $this->createStub(ManagerInterface::class),
+            $this->createStub(WriterInterface::class),
+            $this->createResourceConnection()
+        ));
 
         $this->expectException(LocalizedException::class);
         $this->expectExceptionMessage('already being saved');
@@ -121,19 +150,58 @@ final class ValidateConfigSaveTest extends TestCase
             ->with('private_captcha_config_save');
         $reinitableConfig = null;
         $validator = $this->createValidator($reinitableConfig);
-        $reinitableConfig->expects(self::once())->method('reinit');
+        $reinitableConfig->expects(self::exactly(2))->method('reinit');
+        $connection = null;
+        $resourceConnection = $this->createResourceConnection($connection);
+        $connection->expects(self::once())->method('beginTransaction');
+        $connection->expects(self::never())->method('commit');
+        $connection->expects(self::once())->method('rollBack');
 
-        $plugin = new ValidateConfigSave(
+        $plugin = new ValidateConfigSave(new ConfigSaveHandler(
             $validator,
             $this->createMock(TypeListInterface::class),
-            $lockManager
-        );
+            $lockManager,
+            $this->createStub(ManagerInterface::class),
+            $this->createStub(WriterInterface::class),
+            $resourceConnection
+        ));
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('save failed');
 
         $plugin->aroundSave($this->createConfigSubject('private_captcha'), static function (): void {
             throw new \RuntimeException('save failed');
+        });
+    }
+
+    public function testConfigurationLockIsReleasedWhenDatabaseConnectionFails(): void
+    {
+        $lockManager = $this->createMock(LockManagerInterface::class);
+        $lockManager->expects(self::once())->method('lock')->willReturn(true);
+        $lockManager->expects(self::once())
+            ->method('unlock')
+            ->with('private_captcha_config_save');
+        $resourceConnection = $this->createMock(ResourceConnection::class);
+        $resourceConnection->expects(self::once())
+            ->method('getConnection')
+            ->willThrowException(new \RuntimeException('connection failed'));
+        $reinitableConfig = null;
+        $validator = $this->createValidator($reinitableConfig);
+        $reinitableConfig->expects(self::never())->method('reinit');
+        $plugin = new ValidateConfigSave(new ConfigSaveHandler(
+            $validator,
+            $this->createStub(TypeListInterface::class),
+            $lockManager,
+            $this->createStub(ManagerInterface::class),
+            $this->createStub(WriterInterface::class),
+            $resourceConnection
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('connection failed');
+
+        $plugin->aroundSave($this->createConfigSubject('private_captcha'), static function (): void {
+            self::fail('The save must not proceed without a database connection.');
         });
     }
 
@@ -145,8 +213,8 @@ final class ValidateConfigSaveTest extends TestCase
             static function (string $path): string {
                 return match ($path) {
                     Config::PATH_EU_ISOLATION, Config::PATH_DEBUG_MODE => '0',
-                    Config::PATH_LANGUAGE, Config::PATH_START_MODE => 'auto',
                     Config::PATH_THEME => 'light',
+                    Config::PATH_LANGUAGE, Config::PATH_START_MODE => 'auto',
                     Config::PATH_SCRIPT => 'default',
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_LOGIN],
                     Config::FORM_PATHS[Config::FORM_CUSTOMER_REGISTRATION],
@@ -174,8 +242,18 @@ final class ValidateConfigSaveTest extends TestCase
             $storeManager,
             $this->createMock(ConfigFactory::class),
             $settingChecker,
-            new CustomDomain()
+            new CustomDomain(),
+            $this->createStub(CurrentSettingsTester::class)
         );
+    }
+
+    private function createResourceConnection(?AdapterInterface &$connection = null): ResourceConnection
+    {
+        $connection = $this->createMock(AdapterInterface::class);
+        $resourceConnection = $this->createStub(ResourceConnection::class);
+        $resourceConnection->method('getConnection')->willReturn($connection);
+
+        return $resourceConnection;
     }
 
     private function createConfigSubject(string $section): MagentoConfig

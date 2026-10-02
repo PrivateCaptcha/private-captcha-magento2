@@ -5,13 +5,18 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-# Highest semantic/version tag, e.g. v1.2.3
-TAG="$(git tag --sort=-version:refname | head -n 1)"
-
-if [[ -z "$TAG" ]]; then
-    echo "Error: No Git tags found."
+if [[ $# -eq 0 ]]; then
+    echo "Error: A Git tag is required. Recent tags:"
+    git tag --sort=-version:refname | sed -n '1,5p'
     exit 1
 fi
+
+if [[ $# -ne 1 ]]; then
+    echo "Usage: $0 <tag>" >&2
+    exit 1
+fi
+
+TAG="$1"
 
 # Strip optional leading "v"
 VERSION="${TAG#v}"
@@ -32,7 +37,7 @@ echo "  Version: $VERSION"
 
 mkdir -p "$DIST_DIR"
 
-# Export exactly the files from the latest tag
+# Export exactly the files from the requested tag
 git archive "$TAG" | tar -x -C "$BUILD_DIR"
 
 COMPOSER_JSON="$BUILD_DIR/composer.json"

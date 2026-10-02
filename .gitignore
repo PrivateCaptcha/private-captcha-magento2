@@ -1,2 +1,7 @@
 dist/
 .DS_Store
+vendor/
+coverage/
+.phpunit.result.cache
+composer.lock
+.php-cs-fixer.cache
