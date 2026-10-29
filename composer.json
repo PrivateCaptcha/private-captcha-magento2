@@ -22,7 +22,7 @@
         "magento/module-ui": "^101.2",
         "magento/module-widget": "^101.2",
         "magento/module-wishlist": "^101.2",
-        "private-captcha/private-captcha-php": "^0.0.12"
+        "private-captcha/private-captcha-php": "^0.0.13"
     },
     "autoload": {
         "files": [
